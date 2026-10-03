@@ -1,21 +1,42 @@
 import React, { useState } from 'react';
 import { ethers } from 'ethers';
-import { UploadCloud, CheckCircle2, Loader2, FileText, Lock, ShieldCheck } from 'lucide-react';
+import { UploadCloud, CheckCircle2, Loader2, FileText, Lock, ShieldCheck, UserCheck } from 'lucide-react';
 import { generateAESKey, encryptFile, wrapKeyForRecipient } from '../utils/crypto';
 import { uploadToIPFS } from '../utils/ipfs';
-import { getFileRegistryContract } from '../utils/contracts';
+import { getFileRegistryContract, onboardDoctor } from '../utils/contracts';
+import { useRole } from '../context/RoleContext';
 
-export default function UploadFile({ signer, userKeys, onFileUploaded, onConnectWallet }) {
+export default function UploadFile({ signer, userKeys, onFileUploaded, onConnectWallet, onNavigateTab, account }) {
+  const { role, loading: roleLoading, refreshRole } = useRole();
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [txHash, setTxHash] = useState('');
+  const [isClaimingRole, setIsClaimingRole] = useState(false);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
       setTxHash('');
       setStatus('');
+    }
+  };
+
+  const handleClaimDoctor = async () => {
+    if (!account) return;
+    setIsClaimingRole(true);
+    try {
+      const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+      const adminSigner = new ethers.Wallet(
+        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+        localProvider
+      );
+      await onboardDoctor(adminSigner, account);
+      if (refreshRole) await refreshRole();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsClaimingRole(false);
     }
   };
 
@@ -103,6 +124,56 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
     }
   };
 
+  if (roleLoading) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm flex items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-slate-400 mr-2" />
+        <span className="text-sm text-slate-500">Verifying healthcare credentials...</span>
+      </div>
+    );
+  }
+
+  // Strict RBAC: Only doctor and medical staff can upload medical files
+  if (role !== "doctor" && role !== "medicalStaff") {
+    return (
+      <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm text-center space-y-4">
+        <div className="mx-auto w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-1">
+          <Lock className="w-6 h-6" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-slate-900 mb-1">Access Restricted</h3>
+          <p className="text-sm text-slate-600 max-w-md mx-auto">
+            Only verified doctors and medical staff can upload medical records.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          {onNavigateTab && (
+            <button
+              type="button"
+              onClick={() => onNavigateTab('admin')}
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-medium transition-colors shadow-sm"
+            >
+              Open Role Management
+            </button>
+          )}
+
+          {account && (
+            <button
+              type="button"
+              onClick={handleClaimDoctor}
+              disabled={isClaimingRole}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5 shadow-sm"
+            >
+              {isClaimingRole ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
+              <span>{isClaimingRole ? "Assigning Role..." : "Claim Doctor Role (1-Click)"}</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
       <div className="border-b border-slate-100 pb-4 mb-5">
@@ -150,13 +221,12 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
         <button
           onClick={handleUpload}
           disabled={isProcessing || (!signer && !onConnectWallet)}
-          className={`w-full py-2.5 px-4 font-medium text-xs rounded transition-colors flex items-center justify-center gap-2 ${
-            !signer
+          className={`w-full py-2.5 px-4 font-medium text-xs rounded transition-colors flex items-center justify-center gap-2 ${!signer
               ? 'bg-slate-800 hover:bg-slate-900 text-white'
               : !file
-              ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-              : 'bg-slate-900 hover:bg-slate-800 text-white shadow-sm'
-          }`}
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                : 'bg-slate-900 hover:bg-slate-800 text-white shadow-sm'
+            }`}
         >
           {isProcessing ? (
             <>

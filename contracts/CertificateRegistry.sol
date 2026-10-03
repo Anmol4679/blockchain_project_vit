@@ -2,24 +2,28 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "./BlockDriveAccessControl.sol";
 
 /**
  * @title CertificateRegistry
- * @notice Self-contained, immutable registry for issuing and verifying document fingerprints on-chain.
- * @dev Implements role-based access control where ISSUER_ROLE accounts can register document hashes,
- *      and any public party can verify document authenticity without gas or wallet authentication.
+ * @notice Self-contained, immutable registry for issuing and verifying medical certificates and credentials on-chain.
+ * @dev Enforces dual-gate authorization: callers must hold ISSUER_ROLE (institutional onboarding) and DOCTOR_ROLE on BlockDriveAccessControl (medical qualification).
+ *      Any public party can verify document authenticity without gas or wallet authentication.
  */
 contract CertificateRegistry is AccessControl {
     /// @notice Role identifier for authorized certificate/document issuers.
     bytes32 public constant ISSUER_ROLE = keccak256("ISSUER_ROLE");
 
-    /// @notice Record representing an on-chain issued certificate or document.
+    /// @notice Linked healthcare access control contract governing doctor qualifications.
+    BlockDriveAccessControl public accessControlContract;
+
+    /// @notice Record representing an on-chain issued medical certificate or document.
     struct CertificateRecord {
         bytes32 certificateHash;  // Cryptographic hash (e.g., Keccak-256) of document payload
-        address issuerAddress;    // Address of the authorized issuing authority
-        string recipientName;     // Recipient identity or identifier
+        address issuerAddress;    // Address of the authorized issuing doctor
+        string recipientName;     // Patient or recipient identity
         uint256 issueDate;        // Timestamp when the certificate was issued on-chain
-        string documentType;      // Classification (e.g., "Degree", "Birth Certificate", "Land Record")
+        string documentType;      // Classification (e.g., "Medical Certificate", "Fitness Certificate", "Vaccination Record")
         string metadataURI;       // Optional IPFS CID / URI pointing to non-sensitive public metadata
         bool revoked;             // True if the certificate was invalidated by issuer or admin
         bool exists;              // True if record exists
@@ -56,24 +60,41 @@ contract CertificateRegistry is AccessControl {
     error EmptyHash();
     error EmptyRecipient();
     error EmptyDocumentType();
+    error InvalidAddress();
 
     /**
-     * @notice Initializes the CertificateRegistry with default admin and issuer privileges.
+     * @notice Initializes the CertificateRegistry with default admin, initial issuer, and linked access control.
      * @param defaultAdmin Address to grant DEFAULT_ADMIN_ROLE and initial ISSUER_ROLE.
+     * @param accessControlAddress Address of the deployed BlockDriveAccessControl contract.
      */
-    constructor(address defaultAdmin) {
+    constructor(address defaultAdmin, address accessControlAddress) {
         if (defaultAdmin == address(0)) {
             defaultAdmin = msg.sender;
         }
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(ISSUER_ROLE, defaultAdmin);
+        if (accessControlAddress != address(0)) {
+            accessControlContract = BlockDriveAccessControl(accessControlAddress);
+        }
     }
 
     /**
-     * @notice Register and issue a new document/certificate fingerprint on-chain.
+     * @notice Updates the linked BlockDriveAccessControl contract.
+     * @param accessControlAddress Address of the new BlockDriveAccessControl contract.
+     */
+    function setAccessControlContract(address accessControlAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (accessControlAddress == address(0)) revert InvalidAddress();
+        accessControlContract = BlockDriveAccessControl(accessControlAddress);
+    }
+
+    /**
+     * @notice Register and issue a new medical certificate fingerprint on-chain.
+     * @dev Requires caller to pass dual authorization:
+     *      1. ISSUER_ROLE: Institutional onboarding gate ensuring the wallet is recognized as an authorized issuing node.
+     *      2. DOCTOR_ROLE: Professional qualification gate verifying on BlockDriveAccessControl that the caller is a verified doctor.
      * @param certificateHash Cryptographic hash (Keccak-256) of the document content.
-     * @param recipientName Name or unique identifier of the recipient.
-     * @param documentType Type of document (e.g., "Degree", "Transcript", "License").
+     * @param recipientName Name or unique identifier of the patient / recipient.
+     * @param documentType Type of document (e.g., "Medical Certificate", "Fitness Report").
      * @param metadataURI Optional IPFS CID / metadata URI for public details.
      */
     function issueCertificate(
@@ -82,6 +103,15 @@ contract CertificateRegistry is AccessControl {
         string calldata documentType,
         string calldata metadataURI
     ) external onlyRole(ISSUER_ROLE) {
+        // Dual-authorization verification:
+        // - ISSUER_ROLE check (via modifier) ensures institutional registration.
+        // - DOCTOR_ROLE check ensures professional medical credentialing (neither medical staff nor admin can issue).
+        require(
+            address(accessControlContract) != address(0) &&
+            accessControlContract.hasRole(accessControlContract.DOCTOR_ROLE(), msg.sender),
+            "CertificateRegistry: caller is not a verified doctor"
+        );
+
         if (certificateHash == bytes32(0)) revert EmptyHash();
         if (bytes(recipientName).length == 0) revert EmptyRecipient();
         if (bytes(documentType).length == 0) revert EmptyDocumentType();
@@ -113,7 +143,7 @@ contract CertificateRegistry is AccessControl {
     }
 
     /**
-     * @notice Revoke an existing certificate. Can only be performed by the original issuer or a contract admin.
+     * @notice Revoke an existing certificate. Can only be performed by the original issuing doctor or a contract admin.
      * @param certificateHash The cryptographic hash of the certificate to revoke.
      */
     function revokeCertificate(bytes32 certificateHash) external onlyRole(ISSUER_ROLE) {
@@ -137,7 +167,7 @@ contract CertificateRegistry is AccessControl {
      * @param certificateHash Cryptographic hash of the document to inspect.
      * @return exists True if the certificate was ever issued on-chain.
      * @return revoked True if the certificate is currently revoked.
-     * @return issuer Address of the issuing authority.
+     * @return issuer Address of the issuing doctor.
      * @return recipient Name or ID of the recipient.
      * @return documentType Classification of the document.
      * @return issueDate Unix timestamp when issued.

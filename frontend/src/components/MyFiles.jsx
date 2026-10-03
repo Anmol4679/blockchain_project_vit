@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { 
-  Folder, 
-  UserPlus, 
-  Check, 
-  Loader2, 
-  FileText, 
-  Copy, 
-  CheckCheck, 
-  Calendar, 
-  HardDrive, 
+import {
+  Folder,
+  UserPlus,
+  Check,
+  Loader2,
+  FileText,
+  Copy,
+  CheckCheck,
+  Calendar,
+  HardDrive,
   Edit2,
   Check as CheckIcon,
   X as XIcon,
@@ -59,17 +59,17 @@ export default function MyFiles({ signer, account, userKeys }) {
 
       // Load cached metadata from localStorage
       const cachedMeta = JSON.parse(localStorage.getItem('blockdrive_files_metadata') || '{}');
-      
+
       // Load on-chain record for each file
       const details = {};
       for (const id of fileIds) {
         const idLower = id.toLowerCase();
         let meta = cachedMeta[idLower] || cachedMeta[id] || null;
-        
+
         try {
           const record = await contract.getFileRecord(id);
           const createdAtTimestamp = Number(record.createdAt) * 1000;
-          
+
           if (!meta) {
             meta = {
               name: `Document_${id.substring(2, 8)}.enc`,
@@ -257,7 +257,7 @@ export default function MyFiles({ signer, account, userKeys }) {
       }
 
       setAuthStatus('✓ Recipient authorization confirmed on-chain.');
-      
+
       if (!activeRecipients.includes(recipientAddress.trim())) {
         setActiveRecipients(prev => [...prev, recipientAddress.trim()]);
       }
@@ -348,7 +348,7 @@ export default function MyFiles({ signer, account, userKeys }) {
                   <div className="p-2 bg-white text-slate-700 rounded border border-slate-200 shrink-0 mt-0.5">
                     <FileText className="w-4 h-4" />
                   </div>
-                  
+
                   <div className="min-w-0 flex-1">
                     {isEditing ? (
                       <div className="flex items-center gap-2 mb-1">

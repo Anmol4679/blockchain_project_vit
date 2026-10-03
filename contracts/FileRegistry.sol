@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./AccessControl.sol";
+import "./BlockDriveAccessControl.sol";
 
 /**
  * @title FileRegistry
- * @notice Stores file metadata, IPFS CIDs, and per-recipient wrapped encryption keys.
- * @dev Implements the access control layer from Wang et al. (IEEE Access 2018).
+ * @notice Stores medical record metadata, IPFS CIDs, and per-recipient wrapped encryption keys.
+ * @dev Enforces healthcare RBAC: only verified providers can register records, and access can only be shared with authorized healthcare participants.
  */
 contract FileRegistry {
     struct FileRecord {
@@ -76,9 +76,10 @@ contract FileRegistry {
     }
 
     /**
-     * @notice Register a newly encrypted file with its IPFS CID and owner's wrapped key.
-     * @param fileId Unique identifier (e.g. SHA-256 of plaintext or UUID hash).
-     * @param ipfsCid Content identifier of the ciphertext on IPFS.
+     * @notice Register a newly encrypted medical file with its IPFS CID and owner's wrapped key.
+     * @dev Restricted to verified healthcare providers (doctors or medical staff).
+     * @param fileId Unique identifier of the file (e.g. SHA-256 of plaintext or record UUID).
+     * @param ipfsCid Content identifier of the encrypted payload on IPFS.
      * @param ownerWrappedKey Key wrapped with the owner's public key.
      */
     function registerFile(
@@ -86,6 +87,10 @@ contract FileRegistry {
         string calldata ipfsCid,
         bytes calldata ownerWrappedKey
     ) external {
+        require(
+            accessControlContract.isVerifiedProvider(msg.sender),
+            "FileRegistry: caller is not a verified healthcare provider"
+        );
         if (fileId == bytes32(0)) revert FileNotFound(fileId);
         if (_files[fileId].exists) revert FileAlreadyExists(fileId);
         if (bytes(ipfsCid).length == 0) revert EmptyCID();
@@ -139,6 +144,7 @@ contract FileRegistry {
 
     /**
      * @notice Add a new authorized recipient by supplying their wrapped key.
+     * @dev Restricted to registered healthcare participants (doctor, staff, or patient).
      * @param fileId Target file identifier.
      * @param recipient Address of the recipient being granted access.
      * @param wrappedKey AES key encrypted with recipient's public key.
@@ -150,6 +156,15 @@ contract FileRegistry {
     ) external onlyFileOwner(fileId) {
         if (recipient == address(0)) revert InvalidAddress();
         if (wrappedKey.length == 0) revert EmptyKey();
+
+        bool isParticipant = accessControlContract.hasRole(accessControlContract.DOCTOR_ROLE(), recipient) ||
+            accessControlContract.hasRole(accessControlContract.MEDICAL_STAFF_ROLE(), recipient) ||
+            accessControlContract.hasRole(accessControlContract.PATIENT_ROLE(), recipient);
+
+        require(
+            isParticipant,
+            "FileRegistry: recipient is not an authorized healthcare participant"
+        );
 
         if (!_authorizations[fileId][recipient]) {
             _authorizations[fileId][recipient] = true;
@@ -208,7 +223,7 @@ contract FileRegistry {
     }
 
     /**
-     * @notice Similar to Dgdrive: display accessible files of a specific owner for a caller.
+     * @notice Display accessible files of a specific owner for a caller.
      * @param owner Address of the file owner.
      * @param viewer Address of the caller/viewer wanting to inspect files.
      */

@@ -22,7 +22,7 @@ async function main() {
 
   // 3. Deploy CertificateRegistry
   const CertificateRegistryFactory = await hre.ethers.getContractFactory("CertificateRegistry");
-  const certificateRegistry = await CertificateRegistryFactory.deploy(deployer.address);
+  const certificateRegistry = await CertificateRegistryFactory.deploy(deployer.address, accessControlAddress);
   await certificateRegistry.waitForDeployment();
   const certificateRegistryAddress = await certificateRegistry.getAddress();
   console.log(`CertificateRegistry deployed to: ${certificateRegistryAddress}`);

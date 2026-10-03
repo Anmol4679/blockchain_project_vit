@@ -14,12 +14,21 @@ describe("CertificateRegistry", function () {
 
   const nonExistentHash = ethers.keccak256(ethers.toUtf8Bytes("Non-existent Document"));
 
+  let accessControl;
+
   beforeEach(async function () {
     [admin, issuer1, issuer2, recipientUser, publicVerifier] = await ethers.getSigners();
 
+    const AccessControlFactory = await ethers.getContractFactory("BlockDriveAccessControl");
+    accessControl = await AccessControlFactory.deploy(admin.address);
+    await accessControl.waitForDeployment();
+
     const CertificateRegistryFactory = await ethers.getContractFactory("CertificateRegistry");
-    certificateRegistry = await CertificateRegistryFactory.deploy(admin.address);
+    certificateRegistry = await CertificateRegistryFactory.deploy(admin.address, await accessControl.getAddress());
     await certificateRegistry.waitForDeployment();
+
+    // Onboard issuer1 as verified doctor
+    await accessControl.connect(admin).onboardDoctor(issuer1.address);
 
     // Grant ISSUER_ROLE to issuer1
     const ISSUER_ROLE = await certificateRegistry.ISSUER_ROLE();

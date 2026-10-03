@@ -1,15 +1,50 @@
 import React from 'react';
 import { Wallet, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
+import { useRole } from '../context/RoleContext';
 
-export default function WalletConnect({ 
-  account, 
-  onConnect, 
-  isConnecting, 
-  error, 
-  chainId, 
-  onSwitchNetwork 
+export default function WalletConnect({
+  account,
+  onConnect,
+  isConnecting,
+  error,
+  chainId,
+  onSwitchNetwork
 }) {
   const isLocalOrSepolia = chainId === "0x7a69" || chainId === "0xaa36a7" || chainId === "31337" || chainId === "11155111";
+  const { role } = useRole();
+
+  const getRoleBadge = (roleName) => {
+    switch (roleName) {
+      case 'admin':
+        return {
+          label: 'Admin',
+          classes: 'bg-purple-50 text-purple-700 border-purple-200',
+        };
+      case 'doctor':
+        return {
+          label: 'Doctor',
+          classes: 'bg-blue-50 text-blue-700 border-blue-200',
+        };
+      case 'medicalStaff':
+        return {
+          label: 'Medical Staff',
+          classes: 'bg-teal-50 text-teal-700 border-teal-200',
+        };
+      case 'patient':
+        return {
+          label: 'Patient',
+          classes: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        };
+      case 'unregistered':
+      default:
+        return {
+          label: 'Unregistered',
+          classes: 'bg-slate-100 text-slate-600 border-slate-200',
+        };
+    }
+  };
+
+  const roleBadge = getRoleBadge(role);
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
@@ -33,6 +68,9 @@ export default function WalletConnect({
                 <span>Account:</span>
                 <span className="bg-slate-50 text-slate-900 font-semibold px-2 py-0.5 rounded border border-slate-200 select-all">
                   {account}
+                </span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${roleBadge.classes}`}>
+                  {roleBadge.label}
                 </span>
               </div>
             ) : (

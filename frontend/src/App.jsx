@@ -9,6 +9,209 @@ import SharedFiles from './components/SharedFiles';
 import RequestAccessDecrypt from './components/RequestAccessDecrypt';
 import AuthModal from './components/AuthModal';
 import { CertificateVerifier, CertificateIssuer } from './features/certificate-verification';
+import { RoleProvider, useRole } from './context/RoleContext';
+import RoleManagement from './components/admin/RoleManagement';
+
+function AppContent({
+  signer,
+  account,
+  isConnecting,
+  error,
+  chainId,
+  switchToLocalhostNetwork,
+  connectWallet,
+  connectLocalTestWallet,
+  authUser,
+  isAuthModalOpen,
+  setIsAuthModalOpen,
+  authModalView,
+  setAuthModalView,
+  handleSignOut,
+  setAuthUser,
+  userKeys,
+  showKeyDetails,
+  setShowKeyDetails,
+  activeTab,
+  setActiveTab
+}) {
+  const { role } = useRole();
+
+  const TABS = [
+    { id: 'upload', label: 'Upload & Encrypt' },
+    { id: 'myfiles', label: 'My Files & Access' },
+    { id: 'shared', label: 'Shared With Me' },
+    { id: 'decrypt', label: 'Manual Decrypt' },
+    { id: 'verify', label: 'Verify Document' },
+    { id: 'issue', label: 'Issue Certificate' },
+    { id: 'admin', label: 'Role Management' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+      {/* Enterprise Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-slate-900 text-white rounded-md">
+              <HardDrive className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-slate-900 tracking-tight">BlockDrive</span>
+                <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-slate-100 text-slate-600 rounded border border-slate-200">
+                  v1.0
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 hidden sm:block">Decentralized Access-Controlled Storage System</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Supabase User Auth State */}
+            {authUser ? (
+              <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-700">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="font-medium max-w-[130px] truncate">{authUser.email}</span>
+                <button
+                  onClick={handleSignOut}
+                  title="Sign Out"
+                  className="text-slate-400 hover:text-slate-700 transition-colors p-0.5"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setAuthModalView('signIn');
+                    setIsAuthModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded text-xs font-medium transition-colors"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => {
+                    setAuthModalView('signUp');
+                    setIsAuthModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-medium transition-colors"
+                >
+                  Register
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1 w-full">
+        {/* Auth Modal */}
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          initialView={authModalView}
+          onAuthSuccess={(user) => setAuthUser(user)}
+        />
+
+        {/* Web3 Wallet Connection Card */}
+        <WalletConnect
+          account={account}
+          onConnect={connectWallet}
+          isConnecting={isConnecting}
+          error={error}
+          chainId={chainId}
+          onSwitchNetwork={switchToLocalhostNetwork}
+        />
+
+        {/* Navigation Tabs */}
+        <nav className="border-b border-slate-200">
+          <div className="flex space-x-1 sm:space-x-4 overflow-x-auto pb-px">
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`py-2.5 px-3 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${isActive
+                      ? 'border-slate-900 text-slate-900 font-semibold'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Tab Content Panes */}
+        <div>
+          {activeTab === 'upload' && (
+            <UploadFile
+              signer={signer}
+              account={account}
+              userKeys={userKeys}
+              onConnectWallet={connectLocalTestWallet}
+              onNavigateTab={(tab) => setActiveTab(tab)}
+              onFileUploaded={() => setActiveTab('myfiles')}
+            />
+          )}
+          {activeTab === 'myfiles' && (
+            <MyFiles signer={signer} account={account} userKeys={userKeys} />
+          )}
+          {activeTab === 'shared' && (
+            <SharedFiles signer={signer} account={account} userKeys={userKeys} />
+          )}
+          {activeTab === 'decrypt' && (
+            <RequestAccessDecrypt signer={signer} userKeys={userKeys} />
+          )}
+          {activeTab === 'verify' && (
+            <CertificateVerifier />
+          )}
+          {activeTab === 'issue' && (
+            <CertificateIssuer
+              signer={signer}
+              account={account}
+              onConnectWallet={connectLocalTestWallet}
+            />
+          )}
+          {activeTab === 'admin' && (
+            <RoleManagement signer={signer} account={account} />
+          )}
+        </div>
+
+        {/* Collapsible Session ECDH Public Key Inspector */}
+        {userKeys && (
+          <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
+            <button
+              onClick={() => setShowKeyDetails(!showKeyDetails)}
+              className="w-full flex items-center justify-between text-slate-700 font-medium hover:text-slate-900"
+            >
+              <div className="flex items-center gap-2">
+                <Key className="w-3.5 h-3.5 text-slate-500" />
+                <span>Client ECDH Public Key (P-256 JWK Session)</span>
+              </div>
+              {showKeyDetails ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </button>
+            {showKeyDetails && (
+              <div className="mt-2 pt-2 border-t border-slate-100 font-mono text-[11px] text-slate-500 break-all select-all bg-slate-50 p-2 rounded">
+                {JSON.stringify(userKeys.publicKeyJWK)}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Formal Footer */}
+      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400">
+        BlockDrive Decentralized Storage Architecture • Cryptographic Access Control Layer
+      </footer>
+    </div>
+  );
+}
 
 export default function App() {
   const [provider, setProvider] = useState(null);
@@ -18,16 +221,16 @@ export default function App() {
   const [error, setError] = useState('');
   const [userKeys, setUserKeys] = useState(null);
   const [showKeyDetails, setShowKeyDetails] = useState(false);
-  
+
   // Support deep links like ?tab=verify or ?tab=issue or #verify
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam && ['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue'].includes(tabParam)) {
+    if (tabParam && ['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue', 'admin'].includes(tabParam)) {
       return tabParam;
     }
     const hash = window.location.hash.replace('#', '');
-    if (['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue'].includes(hash)) {
+    if (['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue', 'admin'].includes(hash)) {
       return hash;
     }
     return 'upload';
@@ -301,174 +504,30 @@ export default function App() {
     }
   }, []);
 
-  const TABS = [
-    { id: 'upload', label: 'Upload & Encrypt' },
-    { id: 'myfiles', label: 'My Files & Access' },
-    { id: 'shared', label: 'Shared With Me' },
-    { id: 'decrypt', label: 'Manual Decrypt' },
-    { id: 'verify', label: 'Verify Document' },
-    { id: 'issue', label: 'Issue Certificate' },
-  ];
-
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-      {/* Enterprise Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-900 text-white rounded-md">
-              <HardDrive className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-slate-900 tracking-tight">BlockDrive</span>
-                <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-slate-100 text-slate-600 rounded border border-slate-200">
-                  v1.0
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 hidden sm:block">Decentralized Access-Controlled Storage System</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Supabase User Auth State */}
-            {authUser ? (
-              <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-700">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span className="font-medium max-w-[130px] truncate">{authUser.email}</span>
-                <button
-                  onClick={handleSignOut}
-                  title="Sign Out"
-                  className="text-slate-400 hover:text-slate-700 transition-colors p-0.5"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setAuthModalView('signIn');
-                    setIsAuthModalOpen(true);
-                  }}
-                  className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded text-xs font-medium transition-colors"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => {
-                    setAuthModalView('signUp');
-                    setIsAuthModalOpen(true);
-                  }}
-                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-medium transition-colors"
-                >
-                  Register
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1 w-full">
-        {/* Auth Modal */}
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={() => setIsAuthModalOpen(false)}
-          initialView={authModalView}
-          onAuthSuccess={(user) => setAuthUser(user)}
-        />
-
-        {/* Web3 Wallet Connection Card */}
-        <WalletConnect
-          account={account}
-          onConnect={connectWallet}
-          isConnecting={isConnecting}
-          error={error}
-          chainId={chainId}
-          onSwitchNetwork={switchToLocalhostNetwork}
-        />
-
-        {/* Navigation Tabs */}
-        <nav className="border-b border-slate-200">
-          <div className="flex space-x-1 sm:space-x-4 overflow-x-auto pb-px">
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-2.5 px-3 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    isActive
-                      ? 'border-slate-900 text-slate-900 font-semibold'
-                      : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-
-        {/* Tab Content Panes */}
-        <div>
-          {activeTab === 'upload' && (
-            <UploadFile
-              signer={signer}
-              userKeys={userKeys}
-              onConnectWallet={connectLocalTestWallet}
-              onFileUploaded={() => setActiveTab('myfiles')}
-            />
-          )}
-          {activeTab === 'myfiles' && (
-            <MyFiles signer={signer} account={account} userKeys={userKeys} />
-          )}
-          {activeTab === 'shared' && (
-            <SharedFiles signer={signer} account={account} userKeys={userKeys} />
-          )}
-          {activeTab === 'decrypt' && (
-            <RequestAccessDecrypt signer={signer} userKeys={userKeys} />
-          )}
-          {activeTab === 'verify' && (
-            <CertificateVerifier />
-          )}
-          {activeTab === 'issue' && (
-            <CertificateIssuer
-              signer={signer}
-              account={account}
-              onConnectWallet={connectLocalTestWallet}
-            />
-          )}
-        </div>
-
-        {/* Collapsible Session ECDH Public Key Inspector */}
-        {userKeys && (
-          <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
-            <button
-              onClick={() => setShowKeyDetails(!showKeyDetails)}
-              className="w-full flex items-center justify-between text-slate-700 font-medium hover:text-slate-900"
-            >
-              <div className="flex items-center gap-2">
-                <Key className="w-3.5 h-3.5 text-slate-500" />
-                <span>Client ECDH Public Key (P-256 JWK Session)</span>
-              </div>
-              {showKeyDetails ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-            </button>
-            {showKeyDetails && (
-              <div className="mt-2 pt-2 border-t border-slate-100 font-mono text-[11px] text-slate-500 break-all select-all bg-slate-50 p-2 rounded">
-                {JSON.stringify(userKeys.publicKeyJWK)}
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-
-      {/* Formal Footer */}
-      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400">
-        BlockDrive Decentralized Storage Architecture • Cryptographic Access Control Layer
-      </footer>
-    </div>
+    <RoleProvider provider={provider} account={account}>
+      <AppContent
+        signer={signer}
+        account={account}
+        isConnecting={isConnecting}
+        error={error}
+        chainId={chainId}
+        switchToLocalhostNetwork={switchToLocalhostNetwork}
+        connectWallet={connectWallet}
+        connectLocalTestWallet={connectLocalTestWallet}
+        authUser={authUser}
+        isAuthModalOpen={isAuthModalOpen}
+        setIsAuthModalOpen={setIsAuthModalOpen}
+        authModalView={authModalView}
+        setAuthModalView={setAuthModalView}
+        handleSignOut={handleSignOut}
+        setAuthUser={setAuthUser}
+        userKeys={userKeys}
+        showKeyDetails={showKeyDetails}
+        setShowKeyDetails={setShowKeyDetails}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
+    </RoleProvider>
   );
 }
