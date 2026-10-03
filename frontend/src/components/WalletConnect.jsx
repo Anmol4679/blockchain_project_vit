@@ -1,6 +1,13 @@
-import React from 'react';
-import { Wallet, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { ethers } from 'ethers';
+import { Wallet, ShieldCheck, AlertCircle, RefreshCw, Loader2, UserCheck } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
+import {
+  onboardDoctor,
+  onboardMedicalStaff,
+  onboardPatient,
+  revokeHealthcareRole
+} from '../utils/contracts';
 
 export default function WalletConnect({
   account,
@@ -11,15 +18,11 @@ export default function WalletConnect({
   onSwitchNetwork
 }) {
   const isLocalOrSepolia = chainId === "0x7a69" || chainId === "0xaa36a7" || chainId === "31337" || chainId === "11155111";
-  const { role } = useRole();
+  const { role, refreshRole } = useRole();
+  const [isSwitching, setIsSwitching] = useState(false);
 
   const getRoleBadge = (roleName) => {
     switch (roleName) {
-      case 'admin':
-        return {
-          label: 'Admin',
-          classes: 'bg-purple-50 text-purple-700 border-purple-200',
-        };
       case 'doctor':
         return {
           label: 'Doctor',
@@ -45,6 +48,45 @@ export default function WalletConnect({
   };
 
   const roleBadge = getRoleBadge(role);
+
+  const handleSwitchRole = async (targetRole) => {
+    if (!account) return;
+    setIsSwitching(true);
+    try {
+      const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+      const adminSigner = new ethers.Wallet(
+        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+        localProvider
+      );
+      
+      // Ensure test account has ETH
+      try {
+        await adminSigner.sendTransaction({
+          to: account,
+          value: ethers.parseEther("2.0")
+        });
+      } catch {}
+
+      // Clean conflicting roles to maintain role exclusivity
+      try { await revokeHealthcareRole(adminSigner, account, 'patient'); } catch {}
+      try { await revokeHealthcareRole(adminSigner, account, 'doctor'); } catch {}
+      try { await revokeHealthcareRole(adminSigner, account, 'medicalStaff'); } catch {}
+
+      if (targetRole === 'doctor') {
+        await onboardDoctor(adminSigner, account);
+      } else if (targetRole === 'medicalStaff') {
+        await onboardMedicalStaff(adminSigner, account);
+      } else if (targetRole === 'patient') {
+        await onboardPatient(adminSigner, account);
+      }
+
+      if (refreshRole) await refreshRole();
+    } catch (err) {
+      console.error("Failed to switch role:", err);
+    } finally {
+      setIsSwitching(false);
+    }
+  };
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
@@ -81,31 +123,64 @@ export default function WalletConnect({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 self-end md:self-center">
+        {/* 1-Click Role Switcher for Testing */}
+        {account && (
+          <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded p-1">
+            <span className="text-[10px] uppercase font-semibold text-slate-400 px-1.5 hidden sm:inline">Role:</span>
+            <button
+              onClick={() => handleSwitchRole('doctor')}
+              disabled={isSwitching || role === 'doctor'}
+              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                role === 'doctor'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              }`}
+            >
+              Doctor
+            </button>
+            <button
+              onClick={() => handleSwitchRole('medicalStaff')}
+              disabled={isSwitching || role === 'medicalStaff'}
+              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                role === 'medicalStaff'
+                  ? 'bg-teal-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              }`}
+            >
+              Medical Staff
+            </button>
+            <button
+              onClick={() => handleSwitchRole('patient')}
+              disabled={isSwitching || role === 'patient'}
+              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                role === 'patient'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              }`}
+            >
+              Patient
+            </button>
+          </div>
+        )}
+
         {account && !isLocalOrSepolia && (
           <button
             onClick={onSwitchNetwork}
             className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded transition-colors"
           >
-            Switch to Localhost (31337)
+            Switch to Localhost
           </button>
         )}
 
         {account ? (
-          <div className="flex items-center gap-2">
-            <div className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 text-slate-700 rounded text-xs font-medium flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              {chainId === "0xaa36a7" || chainId === "11155111" ? "Sepolia Testnet" : "Hardhat Local (31337)"}
-            </div>
-
-            <button
-              onClick={onConnect}
-              title="Request account switch in MetaMask"
-              className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded text-xs font-medium transition-colors flex items-center gap-1.5"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-              Switch Account
-            </button>
-          </div>
+          <button
+            onClick={onConnect}
+            title="Request account switch in MetaMask"
+            className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded text-xs font-medium transition-colors flex items-center gap-1.5"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+            Switch Account
+          </button>
         ) : (
           <button
             onClick={onConnect}

@@ -31,19 +31,16 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
   const [status, setStatus] = useState('');
   const [issuedRecord, setIssuedRecord] = useState(null);
   const [hasIssuerRole, setHasIssuerRole] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isGrantingRole, setIsGrantingRole] = useState(false);
   const [copiedHash, setCopiedHash] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
   const PRESET_TYPES = [
-    'Degree Certificate',
-    'University Diploma',
-    'Government Identity Document',
-    'Land Title Deed',
-    'Professional License',
-    'Employment Verification Letter',
     'Medical Record / Health Certificate',
+    'Doctor Prescription & Clearance',
+    'Hospital Discharge Summary',
+    'Laboratory Diagnostic Report',
+    'Vaccination Certificate',
+    'Degree Certificate / Professional License',
     'Other / Custom Type'
   ];
 
@@ -51,21 +48,13 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
     async function checkRoles() {
       if (!signer || !account) {
         setHasIssuerRole(null);
-        setIsAdmin(false);
         return;
       }
       try {
         const contract = getCertificateRegistryContract(signer);
         const ISSUER_ROLE = await contract.ISSUER_ROLE();
-        const DEFAULT_ADMIN_ROLE = await contract.DEFAULT_ADMIN_ROLE();
-
-        const [isIssuer, adminStatus] = await Promise.all([
-          contract.hasRole(ISSUER_ROLE, account),
-          contract.hasRole(DEFAULT_ADMIN_ROLE, account)
-        ]);
-
+        const isIssuer = await contract.hasRole(ISSUER_ROLE, account);
         setHasIssuerRole(isIssuer);
-        setIsAdmin(adminStatus);
       } catch (err) {
         console.warn('Role inspection warning:', err);
         setHasIssuerRole(true);
@@ -76,26 +65,19 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
 
   const handleGrantSelfIssuerRole = async () => {
     if (!account) return;
-    setIsGrantingRole(true);
-    setStatus('Granting ISSUER_ROLE on-chain...');
+    setStatus('Activating certificate issuance credentials on-chain...');
     try {
-      let adminSigner = signer;
-      if (!isAdmin) {
-        // Fallback to local hardhat admin deployer for seamless local development
-        const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-        adminSigner = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", localProvider);
-      }
+      const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+      const adminSigner = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", localProvider);
       const contract = getCertificateRegistryContract(adminSigner);
       const ISSUER_ROLE = await contract.ISSUER_ROLE();
       const tx = await contract.grantRole(ISSUER_ROLE, account);
       await tx.wait();
       setHasIssuerRole(true);
-      setStatus('✓ ISSUER_ROLE granted to this account.');
+      setStatus('✓ Issuer authorization active for this doctor.');
     } catch (err) {
       console.error(err);
-      setStatus(`Failed to grant role: ${err.message}`);
-    } finally {
-      setIsGrantingRole(false);
+      setStatus(`Failed to activate issuer credentials: ${err.message}`);
     }
   };
 
@@ -171,7 +153,7 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
       if (errStr.includes('CertificateAlreadyExists') || errStr.includes('16b35fe3')) {
         setStatus('This file has already been verified and registered on-chain. Please upload a different file.');
       } else if (errStr.includes('AccessControlUnauthorizedAccount') || errStr.includes('e2517d3f')) {
-        setStatus('Your wallet does not have ISSUER_ROLE permission. Click "Claim ISSUER_ROLE" above to enable.');
+        setStatus('Wallet is missing issuer permission. Click "Activate Issuer Permission" above.');
       } else if (err.code === 4001 || errStr.toLowerCase().includes('user rejected') || errStr.toLowerCase().includes('denied')) {
         setStatus('Transaction was cancelled in MetaMask.');
       } else {
@@ -197,21 +179,27 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
     return (
       <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm flex items-center justify-center">
         <Loader2 className="w-5 h-5 animate-spin text-slate-400 mr-2" />
-        <span className="text-sm text-slate-500">Verifying healthcare credentials...</span>
+        <span className="text-sm text-slate-500">Verifying doctor credentials...</span>
       </div>
     );
   }
 
-  if (role !== "doctor" && role !== "admin") {
+  // Strict Healthcare RBAC: ONLY doctor can issue certificates (medicalStaff and patient cannot)
+  if (role !== "doctor") {
     return (
-      <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm text-center">
-        <div className="mx-auto w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-3">
+      <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm text-center space-y-3">
+        <div className="mx-auto w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-1">
           <Lock className="w-6 h-6" />
         </div>
-        <h3 className="text-base font-semibold text-slate-900 mb-1">Access Restricted</h3>
-        <p className="text-sm text-slate-600 max-w-md mx-auto">
-          Only verified doctors can issue medical certificates.
-        </p>
+        <div>
+          <h3 className="text-base font-semibold text-slate-900 mb-1">Access Restricted</h3>
+          <p className="text-sm text-slate-600 max-w-md mx-auto">
+            Only verified doctors can issue medical certificates.
+          </p>
+          <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
+            Medical staff and patients cannot issue official certificates.
+          </p>
+        </div>
       </div>
     );
   }
@@ -222,10 +210,10 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
       <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-1">
           <Award className="w-5 h-5 text-slate-700" />
-          <h3 className="text-base font-semibold text-slate-900">Certificate & Document Issuance</h3>
+          <h3 className="text-base font-semibold text-slate-900">Certificate & Medical Document Issuance</h3>
         </div>
         <p className="text-xs text-slate-500">
-          Register official credentials, land titles, and institutional documents with permanent on-chain integrity.
+          Issue verified medical certificates, clearances, and diagnostic summaries with permanent on-chain integrity.
         </p>
       </div>
 
@@ -235,19 +223,18 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
           <div className="flex items-center gap-2.5">
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
             <div>
-              <p className="font-semibold">Missing ISSUER_ROLE Permission</p>
+              <p className="font-semibold">Issuer Permission Required</p>
               <p className="text-amber-800 mt-0.5">
-                Wallet (<code className="font-mono">{account}</code>) is not currently registered as an authorized issuer.
+                Doctor wallet (<code className="font-mono">{account}</code>) requires active on-chain issuer credentials.
               </p>
             </div>
           </div>
           <button
             onClick={handleGrantSelfIssuerRole}
-            disabled={isGrantingRole}
-            className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 disabled:bg-amber-400 text-white font-medium rounded text-xs transition-colors flex items-center gap-1.5 shrink-0"
+            className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white font-medium rounded text-xs transition-colors flex items-center gap-1.5 shrink-0"
           >
-            {isGrantingRole ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
-            {isGrantingRole ? 'Granting Role...' : 'Claim ISSUER_ROLE (1-Click)'}
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Activate Issuer Permission</span>
           </button>
         </div>
       )}
@@ -274,7 +261,7 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
             <div className="flex flex-col items-center">
               <UploadCloud className="w-6 h-6 text-slate-500 mb-2" />
               <span className="text-sm font-medium text-slate-800">
-                {file ? file.name : "Select document file (PDF, Doc, Image)"}
+                {file ? file.name : "Select certificate file (PDF, Document, Image)"}
               </span>
               <span className="text-xs text-slate-400 mt-0.5">
                 Cryptographic Keccak-256 fingerprint will be computed client-side
@@ -308,12 +295,12 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
         {/* 2. Recipient Name */}
         <div>
           <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">
-            2. Recipient Name or Identifier *
+            2. Recipient Patient Name or Identifier *
           </label>
           <input
             type="text"
             required
-            placeholder="e.g. John Doe, Student ID: 2026-CS-001"
+            placeholder="e.g. John Doe, Patient ID: P-2026-0042"
             value={recipientName}
             onChange={(e) => setRecipientName(e.target.value)}
             className="w-full bg-white border border-slate-300 focus:border-slate-500 rounded px-3 py-2 text-xs text-slate-900 outline-none"
@@ -345,7 +332,7 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
               <input
                 type="text"
                 required
-                placeholder="e.g. Patent Title, Quality Certificate"
+                placeholder="e.g. Surgical Clearance, Eye Examination"
                 value={customDocType}
                 onChange={(e) => setCustomDocType(e.target.value)}
                 className="w-full bg-white border border-slate-300 focus:border-slate-500 rounded px-3 py-2 text-xs text-slate-900 outline-none"
@@ -370,7 +357,7 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
 
         {!signer && (
           <div className="p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-900 flex items-center justify-between">
-            <span>Connect authorized wallet to issue certificate on-chain.</span>
+            <span>Connect authorized doctor wallet to issue certificate on-chain.</span>
             <button
               type="button"
               onClick={onConnectWallet}
@@ -404,13 +391,13 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
               ? 'bg-amber-50 border-amber-200 text-amber-900'
               : status.includes('✓')
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : status.includes('cancelled') || status.includes('could not be completed') || status.includes('does not have')
+                : status.includes('cancelled') || status.includes('could not be completed') || status.includes('missing')
                   ? 'bg-rose-50 border-rose-200 text-rose-800'
                   : 'bg-slate-50 border-slate-200 text-slate-700'
             }`}>
             {status.includes('already been verified') && <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />}
             {status.includes('✓') && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
-            {(status.includes('cancelled') || status.includes('could not be completed')) && <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />}
+            {(status.includes('cancelled') || status.includes('could not be completed') || status.includes('missing')) && <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />}
             <span>{status}</span>
           </div>
         )}
@@ -450,7 +437,7 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
                 <span className="text-slate-900 font-semibold">{issuedRecord.recipient}</span>
               </div>
               <div>
-                <span className="text-slate-500 font-medium block">Issuing Authority</span>
+                <span className="text-slate-500 font-medium block">Issuing Doctor</span>
                 <code className="text-slate-800 font-mono text-[11px] block truncate">{issuedRecord.issuer}</code>
               </div>
               <div>

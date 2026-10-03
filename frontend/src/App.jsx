@@ -10,7 +10,6 @@ import RequestAccessDecrypt from './components/RequestAccessDecrypt';
 import AuthModal from './components/AuthModal';
 import { CertificateVerifier, CertificateIssuer } from './features/certificate-verification';
 import { RoleProvider, useRole } from './context/RoleContext';
-import RoleManagement from './components/admin/RoleManagement';
 
 function AppContent({
   signer,
@@ -43,7 +42,6 @@ function AppContent({
     { id: 'decrypt', label: 'Manual Decrypt' },
     { id: 'verify', label: 'Verify Document' },
     { id: 'issue', label: 'Issue Certificate' },
-    { id: 'admin', label: 'Role Management' },
   ];
 
   return (
@@ -116,7 +114,7 @@ function AppContent({
           onAuthSuccess={(user) => setAuthUser(user)}
         />
 
-        {/* Web3 Wallet Connection Card */}
+        {/* Web3 Wallet Connection Card with 1-Click Role Switcher */}
         <WalletConnect
           account={account}
           onConnect={connectWallet}
@@ -155,7 +153,6 @@ function AppContent({
               account={account}
               userKeys={userKeys}
               onConnectWallet={connectLocalTestWallet}
-              onNavigateTab={(tab) => setActiveTab(tab)}
               onFileUploaded={() => setActiveTab('myfiles')}
             />
           )}
@@ -177,9 +174,6 @@ function AppContent({
               account={account}
               onConnectWallet={connectLocalTestWallet}
             />
-          )}
-          {activeTab === 'admin' && (
-            <RoleManagement signer={signer} account={account} />
           )}
         </div>
 
@@ -226,11 +220,11 @@ export default function App() {
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam && ['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue', 'admin'].includes(tabParam)) {
+    if (tabParam && ['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue'].includes(tabParam)) {
       return tabParam;
     }
     const hash = window.location.hash.replace('#', '');
-    if (['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue', 'admin'].includes(hash)) {
+    if (['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue'].includes(hash)) {
       return hash;
     }
     return 'upload';
@@ -342,65 +336,18 @@ export default function App() {
     }
   };
 
-  const HARDHAT_TEST_ACCOUNTS = [
-    {
-      index: 0,
-      name: "Account #0 (Primary Uploader)",
-      address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-      privateKey: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-    },
-    {
-      index: 1,
-      name: "Account #1 (Recipient / User 2)",
-      address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-      privateKey: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
-    },
-    {
-      index: 2,
-      name: "Account #2 (Third Party / Auditor)",
-      address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-      privateKey: "0x5de4111afa1a4b94908f83103eb2f958080a12f9f2a24d6bdaab40273a10dd51"
-    }
-  ];
-
-  const connectTestAccountByIndex = async (index = 0) => {
-    setIsConnecting(true);
-    setError("");
+  const connectLocalTestWallet = async () => {
     try {
-      const targetAcc = HARDHAT_TEST_ACCOUNTS[index] || HARDHAT_TEST_ACCOUNTS[0];
       const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-      const localSigner = new ethers.Wallet(targetAcc.privateKey, localProvider);
+      const localSigner = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", localProvider);
       const address = await localSigner.getAddress();
       setProvider(localProvider);
       setSigner(localSigner);
       setAccount(address);
       setChainId("0x7a69");
     } catch (err) {
-      console.error("Local test wallet error:", err);
-      setError("Failed to connect to local Hardhat node at http://127.0.0.1:8545. Make sure 'npx hardhat node' is running.");
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const connectLocalTestWallet = async () => {
-    await connectTestAccountByIndex(0);
-  };
-
-  const ensureLocalBalance = async (targetAddress) => {
-    try {
-      const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-      const balance = await localProvider.getBalance(targetAddress);
-      if (balance < ethers.parseEther("1.0")) {
-        const faucetSigner = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", localProvider);
-        const tx = await faucetSigner.sendTransaction({
-          to: targetAddress,
-          value: ethers.parseEther("100.0")
-        });
-        await tx.wait();
-      }
-    } catch (e) {
-      console.warn("Auto-funding skipped:", e);
+      console.error(err);
+      setError("Failed to connect to local Hardhat node at http://127.0.0.1:8545.");
     }
   };
 
@@ -417,8 +364,6 @@ export default function App() {
       if (!accounts || accounts.length === 0) {
         throw new Error("No Ethereum account selected in MetaMask.");
       }
-
-      ensureLocalBalance(accounts[0]);
 
       const browserProvider = new ethers.BrowserProvider(window.ethereum);
       const userSigner = await browserProvider.getSigner();
@@ -470,7 +415,6 @@ export default function App() {
       const handleAccountsChanged = async (accounts) => {
         if (accounts && accounts.length > 0) {
           try {
-            ensureLocalBalance(accounts[0]);
             const browserProvider = new ethers.BrowserProvider(window.ethereum);
             const userSigner = await browserProvider.getSigner();
             const network = await browserProvider.getNetwork();

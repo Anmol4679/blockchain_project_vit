@@ -3,14 +3,11 @@ import { getAccessControlContract } from "./contracts";
 
 /**
  * Resolves the primary healthcare role of a connected Ethereum address.
- * Queries BlockDriveAccessControl contract dynamically without caching.
- *
- * Priority order ensures active healthcare participant status (Doctor / Staff / Patient)
- * is reflected directly, with fallback to Admin or Unregistered.
+ * Roles: "doctor" | "medicalStaff" | "patient" | "unregistered"
  *
  * @param {import("ethers").Provider|import("ethers").Signer} [provider] Signer or Provider instance
  * @param {string} address User wallet address
- * @returns {Promise<"admin" | "doctor" | "medicalStaff" | "patient" | "unregistered">}
+ * @returns {Promise<"doctor" | "medicalStaff" | "patient" | "unregistered">}
  */
 export async function getConnectedUserRole(provider, address) {
   if (!address) {
@@ -29,16 +26,14 @@ export async function getConnectedUserRole(provider, address) {
     const accessControl = getAccessControlContract(activeProvider);
 
     // Fetch role identifiers from contract
-    const [adminRole, doctorRole, staffRole, patientRole] = await Promise.all([
-      accessControl.DEFAULT_ADMIN_ROLE(),
+    const [doctorRole, staffRole, patientRole] = await Promise.all([
       accessControl.DOCTOR_ROLE(),
       accessControl.MEDICAL_STAFF_ROLE(),
       accessControl.PATIENT_ROLE(),
     ]);
 
-    // Query role ownership dynamically without caching
-    const [isAdmin, isDoctor, isStaff, isPatient] = await Promise.all([
-      accessControl.hasRole(adminRole, address),
+    // Query healthcare role ownership dynamically without caching
+    const [isDoctor, isStaff, isPatient] = await Promise.all([
       accessControl.hasRole(doctorRole, address),
       accessControl.hasRole(staffRole, address),
       accessControl.hasRole(patientRole, address),
@@ -47,7 +42,6 @@ export async function getConnectedUserRole(provider, address) {
     if (isDoctor) return "doctor";
     if (isStaff) return "medicalStaff";
     if (isPatient) return "patient";
-    if (isAdmin) return "admin";
 
     return "unregistered";
   } catch (error) {
