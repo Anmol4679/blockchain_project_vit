@@ -135,11 +135,13 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
 
     try {
       const contract = getCertificateRegistryContract(signer);
+      const nonce = await signer.getNonce("pending");
       const tx = await contract.issueCertificate(
         documentHash,
         recipientName.trim(),
         finalDocType,
-        metadataURI.trim()
+        metadataURI.trim(),
+        { nonce }
       );
 
       setStatus('Awaiting block confirmation...');

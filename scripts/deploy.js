@@ -20,7 +20,14 @@ async function main() {
   const fileRegistryAddress = await fileRegistry.getAddress();
   console.log(`FileRegistry deployed to: ${fileRegistryAddress}`);
 
-  // 3. Export deployment artifacts for frontend consumption
+  // 3. Deploy CertificateRegistry
+  const CertificateRegistryFactory = await hre.ethers.getContractFactory("CertificateRegistry");
+  const certificateRegistry = await CertificateRegistryFactory.deploy(deployer.address);
+  await certificateRegistry.waitForDeployment();
+  const certificateRegistryAddress = await certificateRegistry.getAddress();
+  console.log(`CertificateRegistry deployed to: ${certificateRegistryAddress}`);
+
+  // 4. Export deployment artifacts for frontend consumption
   const frontendContractsDir = path.join(__dirname, "..", "frontend", "src", "utils");
   if (fs.existsSync(frontendContractsDir)) {
     const deploymentConfig = {
@@ -28,6 +35,7 @@ async function main() {
       chainId: (await hre.ethers.provider.getNetwork()).chainId.toString(),
       accessControlAddress: accessControlAddress,
       fileRegistryAddress: fileRegistryAddress,
+      certificateRegistryAddress: certificateRegistryAddress,
     };
 
     fs.writeFileSync(

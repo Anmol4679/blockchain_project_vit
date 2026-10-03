@@ -57,10 +57,12 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
       // 6. Submit registration transaction to FileRegistry.sol
       setStatus('Submitting registerFile transaction on-chain...');
       const contract = getFileRegistryContract(signer);
+      const nonce = await signer.getNonce("pending");
       const tx = await contract.registerFile(
         fileId,
         ipfsCid,
-        ethers.hexlify(wrappedKeyBytes)
+        ethers.hexlify(wrappedKeyBytes),
+        { nonce }
       );
 
       setStatus('Awaiting block confirmation...');

@@ -238,10 +238,12 @@ export default function MyFiles({ signer, account, userKeys }) {
       const wrappedBytes = await wrapKeyForRecipient(fileAesKey, targetJWK);
 
       setAuthStatus('Submitting addAuthorizedRecipient on-chain...');
+      const nonce = await signer.getNonce("pending");
       const tx = await contract.addAuthorizedRecipient(
         fileId,
         recipientAddress.trim(),
-        ethers.hexlify(wrappedBytes)
+        ethers.hexlify(wrappedBytes),
+        { nonce }
       );
       await tx.wait();
 
@@ -276,7 +278,8 @@ export default function MyFiles({ signer, account, userKeys }) {
 
     try {
       const contract = getFileRegistryContract(signer);
-      const tx = await contract.revokeRecipient(fileId, targetAddress);
+      const nonce = await signer.getNonce("pending");
+      const tx = await contract.revokeRecipient(fileId, targetAddress, { nonce });
       await tx.wait();
       setAuthStatus(`✓ Access revoked for ${targetAddress.substring(0, 8)}...`);
       setActiveRecipients(prev => prev.filter(a => a.toLowerCase() !== targetAddress.toLowerCase()));

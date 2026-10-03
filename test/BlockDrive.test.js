@@ -107,7 +107,7 @@ describe("BlockDrive Contracts", function () {
       ).to.be.revertedWithCustomError(fileRegistry, "NotFileOwner");
     });
 
-    it("should revert on revokeRecipient with AdvancedRevocationNotImplemented", async function () {
+    it("should allow owner to revoke recipient authorization", async function () {
       await fileRegistry.connect(owner).registerFile(mockFileId, mockCid, mockOwnerWrappedKey);
       await fileRegistry
         .connect(owner)
@@ -115,7 +115,11 @@ describe("BlockDrive Contracts", function () {
 
       await expect(
         fileRegistry.connect(owner).revokeRecipient(mockFileId, recipient.address)
-      ).to.be.revertedWithCustomError(fileRegistry, "AdvancedRevocationNotImplemented");
+      )
+        .to.emit(fileRegistry, "RecipientRevoked")
+        .withArgs(mockFileId, recipient.address, owner.address);
+
+      expect(await fileRegistry.isAuthorized(recipient.address, mockFileId)).to.be.false;
     });
   });
 });
