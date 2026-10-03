@@ -3,7 +3,10 @@ import { getAccessControlContract } from "./contracts";
 
 /**
  * Resolves the primary healthcare role of a connected Ethereum address.
- * Queries BlockDriveAccessControl contract without caching.
+ * Queries BlockDriveAccessControl contract dynamically without caching.
+ *
+ * Priority order ensures active healthcare participant status (Doctor / Staff / Patient)
+ * is reflected directly, with fallback to Admin or Unregistered.
  *
  * @param {import("ethers").Provider|import("ethers").Signer} [provider] Signer or Provider instance
  * @param {string} address User wallet address
@@ -41,10 +44,10 @@ export async function getConnectedUserRole(provider, address) {
       accessControl.hasRole(patientRole, address),
     ]);
 
-    if (isAdmin) return "admin";
     if (isDoctor) return "doctor";
     if (isStaff) return "medicalStaff";
     if (isPatient) return "patient";
+    if (isAdmin) return "admin";
 
     return "unregistered";
   } catch (error) {
