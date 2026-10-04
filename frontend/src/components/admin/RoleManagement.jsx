@@ -7,7 +7,8 @@ import {
   onboardMedicalStaff,
   onboardPatient,
   revokeHealthcareRole,
-  getAccessControlContract
+  getAccessControlContract,
+  isLocalNodeAlive
 } from '../../utils/contracts';
 
 export default function RoleManagement({ signer, account }) {
@@ -20,13 +21,17 @@ export default function RoleManagement({ signer, account }) {
   const [txHash, setTxHash] = useState('');
   const [isClaimingAdmin, setIsClaimingAdmin] = useState(false);
 
-  const getAdminSigner = () => {
+  const getAdminSigner = async () => {
     try {
-      const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-      return new ethers.Wallet(
-        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-        localProvider
-      );
+      const alive = await isLocalNodeAlive();
+      if (alive) {
+        const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+        return new ethers.Wallet(
+          "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+          localProvider
+        );
+      }
+      return signer;
     } catch {
       return signer;
     }
@@ -56,7 +61,7 @@ export default function RoleManagement({ signer, account }) {
     setError('');
     setStatus(`Changing role to ${roleName}...`);
     try {
-      const activeAdmin = role === 'admin' ? signer : getAdminSigner();
+      const activeAdmin = role === 'admin' ? signer : await getAdminSigner();
 
       // Revoke any previous healthcare roles first to ensure clean state
       try {
@@ -98,7 +103,7 @@ export default function RoleManagement({ signer, account }) {
     setStatus('Granting Admin role on blockchain...');
     setError('');
     try {
-      const activeAdmin = getAdminSigner();
+      const activeAdmin = await getAdminSigner();
       const contract = getAccessControlContract(activeAdmin);
       const adminRole = await contract.DEFAULT_ADMIN_ROLE();
       const tx = await contract.grantRole(adminRole, account);
@@ -131,7 +136,7 @@ export default function RoleManagement({ signer, account }) {
     setStatus(`Updating role to ${selectedRole} for ${trimmedAddress}...`);
 
     try {
-      const activeAdmin = role === 'admin' ? signer : getAdminSigner();
+      const activeAdmin = role === 'admin' ? signer : await getAdminSigner();
 
       // Revoke conflicting roles first
       try {
@@ -181,7 +186,7 @@ export default function RoleManagement({ signer, account }) {
     setStatus(`Revoking ${selectedRole} role from ${trimmedAddress}...`);
 
     try {
-      const activeAdmin = role === 'admin' ? signer : getAdminSigner();
+      const activeAdmin = role === 'admin' ? signer : await getAdminSigner();
       const receipt = await revokeHealthcareRole(activeAdmin, trimmedAddress, selectedRole);
       setTxHash(receipt?.hash || receipt?.transactionHash || '');
       setStatus(`✓ Successfully revoked ${selectedRole.toUpperCase()} role from ${trimmedAddress}`);

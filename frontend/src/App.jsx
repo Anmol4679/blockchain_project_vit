@@ -29,6 +29,7 @@ import RequestAccessDecrypt from './components/RequestAccessDecrypt';
 import AuthModal from './components/AuthModal';
 import { CertificateVerifier, CertificateIssuer } from './features/certificate-verification';
 import { RoleProvider, useRole } from './context/RoleContext';
+import { isLocalNodeAlive } from './utils/contracts';
 
 function AppContent({
   signer,
@@ -556,16 +557,24 @@ export default function App() {
 
   const connectLocalTestWallet = async () => {
     try {
-      const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-      const localSigner = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", localProvider);
-      const address = await localSigner.getAddress();
-      setProvider(localProvider);
-      setSigner(localSigner);
-      setAccount(address);
-      setChainId("0x7a69");
+      const alive = await isLocalNodeAlive();
+      if (alive) {
+        const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+        const localSigner = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", localProvider);
+        const address = await localSigner.getAddress();
+        setProvider(localProvider);
+        setSigner(localSigner);
+        setAccount(address);
+        setChainId("0x7a69");
+      } else {
+        const randomWallet = ethers.Wallet.createRandom();
+        setSigner(randomWallet);
+        setAccount(randomWallet.address);
+        setChainId("0x7a69");
+      }
     } catch (err) {
       console.error(err);
-      setError("Failed to connect to local Hardhat node at http://127.0.0.1:8545.");
+      setError("Please connect MetaMask or ensure local Hardhat node is running.");
     }
   };
 

@@ -6,7 +6,8 @@ import {
   onboardDoctor,
   onboardMedicalStaff,
   onboardPatient,
-  revokeHealthcareRole
+  revokeHealthcareRole,
+  isLocalNodeAlive
 } from '../utils/contracts';
 
 export default function WalletConnect({
@@ -75,13 +76,15 @@ export default function WalletConnect({
       await refreshRole();
     }
 
-    // 3. Attempt on-chain registration in background if local test node or provider is active
+    // 3. Attempt on-chain registration in background if local test node is active
     try {
-      const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-      const adminSigner = new ethers.Wallet(
-        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-        localProvider
-      );
+      const isAlive = await isLocalNodeAlive();
+      if (isAlive) {
+        const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+        const adminSigner = new ethers.Wallet(
+          "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+          localProvider
+        );
       
       // Ensure test account has ETH
       try {
@@ -103,13 +106,14 @@ export default function WalletConnect({
       } else if (targetRole === 'patient') {
         await onboardPatient(adminSigner, account);
       }
-    } catch (err) {
-      console.warn("On-chain role registration skipped (node offline or custom network), role set active in UI:", err.message);
-    } finally {
-      if (refreshRole) await refreshRole();
-      setIsSwitching(false);
     }
-  };
+  } catch (err) {
+    console.warn("On-chain role registration skipped (node offline or custom network), role set active in UI:", err.message);
+  } finally {
+    if (refreshRole) await refreshRole();
+    setIsSwitching(false);
+  }
+};
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs hover:border-slate-300 transition-colors">

@@ -49,43 +49,58 @@ export default function MyFiles({ signer, account, userKeys }) {
   const [revokingAddress, setRevokingAddress] = useState(null);
 
   const loadFiles = async () => {
-    if (!signer || !account) return;
+    if (!account) return;
     setLoading(true);
     try {
-      const contract = getFileRegistryContract(signer);
-      const rawFileIds = await contract.getFilesByOwner(account);
-      const fileIds = Array.from(rawFileIds || []);
-      setFiles(fileIds);
-
-      // Load cached metadata from localStorage
       const cachedMeta = JSON.parse(localStorage.getItem('blockdrive_files_metadata') || '{}');
+      const cachedIds = Object.keys(cachedMeta);
+      let onChainIds = [];
 
-      // Load on-chain record for each file
+      if (signer) {
+        try {
+          const contract = getFileRegistryContract(signer);
+          const rawFileIds = await contract.getFilesByOwner(account);
+          onChainIds = Array.from(rawFileIds || []);
+        } catch (chainErr) {
+          console.warn('Could not query on-chain files by owner (using local secure cache):', chainErr);
+        }
+      }
+
+      // Merge unique file IDs
+      const uniqueIds = Array.from(new Set([...onChainIds, ...cachedIds]));
+      setFiles(uniqueIds);
+
+      // Load metadata for each file
       const details = {};
-      for (const id of fileIds) {
+      for (const id of uniqueIds) {
         const idLower = id.toLowerCase();
         let meta = cachedMeta[idLower] || cachedMeta[id] || null;
 
-        try {
-          const record = await contract.getFileRecord(id);
-          const createdAtTimestamp = Number(record.createdAt) * 1000;
+        if (signer && onChainIds.includes(id)) {
+          try {
+            const contract = getFileRegistryContract(signer);
+            const record = await contract.getFileRecord(id);
+            const createdAtTimestamp = Number(record.createdAt) * 1000;
 
-          if (!meta) {
-            meta = {
-              name: `Document_${id.substring(2, 8)}.enc`,
-              size: 245000,
-              ipfsCid: record.ipfsCid,
-              createdAt: createdAtTimestamp || Date.now(),
-            };
-          } else {
-            meta.ipfsCid = record.ipfsCid;
-            meta.createdAt = meta.createdAt || createdAtTimestamp;
+            if (!meta) {
+              meta = {
+                fileId: id,
+                name: `Document_${id.substring(2, 8)}.enc`,
+                size: 245000,
+                ipfsCid: record.ipfsCid,
+                createdAt: createdAtTimestamp || Date.now(),
+              };
+            } else {
+              meta.ipfsCid = record.ipfsCid;
+              meta.createdAt = meta.createdAt || createdAtTimestamp;
+            }
+          } catch (recordErr) {
+            console.warn(`Could not load on-chain record for ${id}`, recordErr);
           }
-        } catch (recordErr) {
-          console.warn(`Could not load record for ${id}`, recordErr);
         }
 
         details[id] = meta || {
+          fileId: id,
           name: `Document_${id.substring(2, 8)}.enc`,
           size: 150000,
           createdAt: Date.now(),

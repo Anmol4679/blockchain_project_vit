@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { getAccessControlContract } from "./contracts";
+import { getAccessControlContract, isLocalNodeAlive } from "./contracts";
 
 /**
  * Resolves the primary healthcare role of a connected Ethereum address.
@@ -22,28 +22,33 @@ export async function getConnectedUserRole(provider, address) {
       activeProvider = new ethers.BrowserProvider(window.ethereum);
     }
     if (!activeProvider) {
-      activeProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+      const nodeAlive = await isLocalNodeAlive();
+      if (nodeAlive) {
+        activeProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+      }
     }
 
-    const accessControl = getAccessControlContract(activeProvider);
+    if (activeProvider) {
+      const accessControl = getAccessControlContract(activeProvider);
 
-    // Fetch role identifiers from contract
-    const [doctorRole, staffRole, patientRole] = await Promise.all([
-      accessControl.DOCTOR_ROLE(),
-      accessControl.MEDICAL_STAFF_ROLE(),
-      accessControl.PATIENT_ROLE(),
-    ]);
+      // Fetch role identifiers from contract
+      const [doctorRole, staffRole, patientRole] = await Promise.all([
+        accessControl.DOCTOR_ROLE(),
+        accessControl.MEDICAL_STAFF_ROLE(),
+        accessControl.PATIENT_ROLE(),
+      ]);
 
-    // Query healthcare role ownership dynamically without caching
-    const [isDoctor, isStaff, isPatient] = await Promise.all([
-      accessControl.hasRole(doctorRole, address),
-      accessControl.hasRole(staffRole, address),
-      accessControl.hasRole(patientRole, address),
-    ]);
+      // Query healthcare role ownership dynamically without caching
+      const [isDoctor, isStaff, isPatient] = await Promise.all([
+        accessControl.hasRole(doctorRole, address),
+        accessControl.hasRole(staffRole, address),
+        accessControl.hasRole(patientRole, address),
+      ]);
 
-    if (isDoctor) return "doctor";
-    if (isStaff) return "medicalStaff";
-    if (isPatient) return "patient";
+      if (isDoctor) return "doctor";
+      if (isStaff) return "medicalStaff";
+      if (isPatient) return "patient";
+    }
   } catch (error) {
     console.warn("Could not query on-chain role (network offline or custom network):", error.message);
   }

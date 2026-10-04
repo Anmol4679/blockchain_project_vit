@@ -51,6 +51,24 @@ export const ACCESS_CONTROL_ADDRESS =
   deployedConfig.accessControlAddress ||
   "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
+export async function isLocalNodeAlive() {
+  if (typeof window === "undefined") return false;
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 400);
+    const res = await fetch("http://127.0.0.1:8545", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", method: "net_version", params: [], id: 1 }),
+      signal: controller.signal,
+    });
+    clearTimeout(id);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export function getFileRegistryContract(signerOrProvider) {
   return new ethers.Contract(FILE_REGISTRY_ADDRESS, FILE_REGISTRY_ABI, signerOrProvider);
 }

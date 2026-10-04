@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
 import { getConnectedUserRole } from "../utils/roles";
+import { isLocalNodeAlive } from "../utils/contracts";
 
 const RoleContext = createContext({
   role: "unregistered",
@@ -53,7 +54,10 @@ export function RoleProvider({ children, provider: propProvider, account: propAc
         activeProvider = new ethers.BrowserProvider(window.ethereum);
       }
       if (!activeProvider) {
-        activeProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+        const nodeAlive = await isLocalNodeAlive();
+        if (nodeAlive) {
+          activeProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+        }
       }
       const userRole = await getConnectedUserRole(activeProvider, activeAccount);
       setRole(userRole);
