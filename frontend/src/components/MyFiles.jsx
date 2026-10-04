@@ -17,10 +17,14 @@ import {
   UserMinus,
   ShieldCheck,
   KeyRound,
-  AlertCircle
+  AlertCircle,
+  Download,
+  Unlock,
+  Trash2
 } from 'lucide-react';
 import { getFileRegistryContract } from '../utils/contracts';
-import { wrapKeyForRecipient, unwrapKeyForRecipient, importRawKey } from '../utils/crypto';
+import { wrapKeyForRecipient, unwrapKeyForRecipient, importRawKey, decryptFile } from '../utils/crypto';
+import { downloadFromIPFS } from '../utils/ipfs';
 
 function formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
@@ -48,12 +52,15 @@ export default function MyFiles({ signer, account, userKeys }) {
   const [loadingRecipients, setLoadingRecipients] = useState(false);
   const [revokingAddress, setRevokingAddress] = useState(null);
 
+  // Decryption & download state
+  const [decryptingFileId, setDecryptingFileId] = useState(null);
+  const [downloadUrls, setDownloadUrls] = useState({});
+
   const loadFiles = async () => {
     if (!account) return;
     setLoading(true);
     try {
       const cachedMeta = JSON.parse(localStorage.getItem('blockdrive_files_metadata') || '{}');
-      const cachedIds = Object.keys(cachedMeta);
       let onChainIds = [];
 
       if (signer) {
@@ -66,9 +73,33 @@ export default function MyFiles({ signer, account, userKeys }) {
         }
       }
 
-      // Merge unique file IDs
-      const uniqueIds = Array.from(new Set([...onChainIds, ...cachedIds]));
-      setFiles(uniqueIds);
+      // Prioritize on-chain files for this account
+      const uniqueLower = new Set();
+      const uniqueIds = [];
+
+      // Add on-chain IDs (reversed so newest are first)
+      for (const id of [...onChainIds].reverse()) {
+        const lower = id.toLowerCase();
+        if (!uniqueLower.has(lower)) {
+          uniqueLower.add(lower);
+          uniqueIds.push(id);
+        }
+      }
+
+      // Only add cached IDs if they belong to this account and are not already in list
+      const cachedKeys = Object.keys(cachedMeta);
+      for (const id of cachedKeys.reverse()) {
+        const item = cachedMeta[id];
+        const lower = id.toLowerCase();
+        if (
+          !uniqueLower.has(lower) &&
+          item &&
+          (!item.owner || item.owner.toLowerCase() === account.toLowerCase())
+        ) {
+          uniqueLower.add(lower);
+          uniqueIds.push(item.fileId || id);
+        }
+      }
 
       // Load metadata for each file
       const details = {};
@@ -76,7 +107,7 @@ export default function MyFiles({ signer, account, userKeys }) {
         const idLower = id.toLowerCase();
         let meta = cachedMeta[idLower] || cachedMeta[id] || null;
 
-        if (signer && onChainIds.includes(id)) {
+        if (signer && onChainIds.map(o => o.toLowerCase()).includes(idLower)) {
           try {
             const contract = getFileRegistryContract(signer);
             const record = await contract.getFileRecord(id);
@@ -106,11 +137,88 @@ export default function MyFiles({ signer, account, userKeys }) {
           createdAt: Date.now(),
         };
       }
+
+      // Sort by creation time descending (newest first)
+      uniqueIds.sort((a, b) => {
+        const timeA = details[a]?.createdAt || 0;
+        const timeB = details[b]?.createdAt || 0;
+        return timeB - timeA;
+      });
+
+      setFiles(uniqueIds);
       setFileDetails(details);
     } catch (err) {
       console.error('Failed to load owned files', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDecryptAndDownload = async (fileId) => {
+    if (!signer) return;
+    setDecryptingFileId(fileId);
+    try {
+      const contract = getFileRegistryContract(signer);
+      let record;
+      try {
+        record = await contract.getFileRecord(fileId);
+      } catch (e) {
+        console.warn('Could not fetch record from contract, checking local cache', e);
+      }
+
+      const meta = fileDetails[fileId] || {};
+      const ipfsCid = record?.ipfsCid || meta.ipfsCid;
+      if (!ipfsCid) {
+        throw new Error('IPFS CID not found for this file.');
+      }
+
+      const encryptedPayload = await downloadFromIPFS(ipfsCid);
+
+      // Locate AES key
+      let aesKey = null;
+      if (record?.callerWrappedKey && record.callerWrappedKey !== '0x' && userKeys?.privateKeyJWK) {
+        try {
+          const wrappedKeyBytes = ethers.getBytes(record.callerWrappedKey);
+          aesKey = await unwrapKeyForRecipient(wrappedKeyBytes, userKeys.privateKeyJWK);
+        } catch (unwrapErr) {
+          console.warn('Unwrap error:', unwrapErr);
+        }
+      }
+
+      if (!aesKey) {
+        const fileKeys = JSON.parse(localStorage.getItem('blockdrive_file_aes_keys') || '{}');
+        const rawHex = fileKeys[fileId.toLowerCase()];
+        if (rawHex) {
+          const rawBytes = ethers.getBytes(rawHex);
+          aesKey = await importRawKey(rawBytes);
+        }
+      }
+
+      if (!aesKey) {
+        throw new Error('Decryption key not available in this browser session.');
+      }
+
+      // Extract IV (12 bytes) and ciphertext
+      const iv = encryptedPayload.slice(0, 12);
+      const ciphertext = encryptedPayload.slice(12);
+
+      const decryptedBuffer = await decryptFile(ciphertext, aesKey, iv);
+      const blob = new Blob([decryptedBuffer], { type: meta.type || 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      setDownloadUrls(prev => ({ ...prev, [fileId]: url }));
+
+      // Trigger automatic download
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = meta.name ? meta.name.replace(/\.enc$/, '') : `Decrypted_${fileId.substring(0, 8)}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Decryption failed:', err);
+      alert(`Decryption failed: ${err.message}`);
+    } finally {
+      setDecryptingFileId(null);
     }
   };
 
@@ -473,10 +581,24 @@ export default function MyFiles({ signer, account, userKeys }) {
                   </div>
                 </div>
 
-                <div className="shrink-0 self-end md:self-center">
+                <div className="shrink-0 self-end md:self-center flex items-center gap-2">
+                  <button
+                    onClick={() => handleDecryptAndDownload(fileId)}
+                    disabled={decryptingFileId === fileId}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded-md text-xs font-medium transition-all duration-150 flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-xs"
+                    title="Decrypt and download file"
+                  >
+                    {decryptingFileId === fileId ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5" />
+                    )}
+                    <span>{decryptingFileId === fileId ? 'Decrypting...' : 'Download'}</span>
+                  </button>
+
                   <button
                     onClick={() => handleOpenAccessModal(fileId)}
-                    className="px-3.5 py-1.5 bg-white hover:bg-slate-50 hover:border-slate-400 text-slate-700 border border-slate-300 rounded-md text-xs font-medium transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-2xs hover:shadow-xs"
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 hover:border-slate-400 text-slate-700 border border-slate-300 rounded-md text-xs font-medium transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-2xs hover:shadow-xs"
                   >
                     <Users className="w-3.5 h-3.5 text-slate-500" />
                     <span>Manage Access</span>
