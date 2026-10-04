@@ -240,11 +240,11 @@ export default function SharedFiles({ signer, account, userKeys }) {
     return (
       <div
         key={fileId}
-        className="p-4 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 rounded-md transition-colors space-y-3"
+        className="p-4 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg transition-all duration-150 space-y-3 shadow-2xs hover:shadow-xs"
       >
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-start gap-3 min-w-0 flex-1">
-            <div className="p-2 bg-white text-slate-700 rounded border border-slate-200 shrink-0 mt-0.5">
+            <div className="p-2 bg-white text-slate-700 rounded-md border border-slate-200 shrink-0 mt-0.5 transition-transform duration-150 hover:scale-105">
               <FileText className="w-4 h-4" />
             </div>
 
@@ -270,19 +270,19 @@ export default function SharedFiles({ signer, account, userKeys }) {
                 </span>
                 <span>•</span>
                 <span className="text-slate-600">
-                  Owner: <code className="font-mono text-slate-800 text-[11px] bg-white border border-slate-200 px-1 rounded">{owner.substring(0, 6)}...{owner.substring(owner.length - 4)}</code>
+                  Owner: <code className="font-mono text-slate-800 text-[11px] bg-white border border-slate-200 px-1.5 py-0.5 rounded select-all">{owner.substring(0, 6)}...{owner.substring(owner.length - 4)}</code>
                 </span>
               </div>
 
               <div className="flex items-center gap-2 mt-2">
                 <span className="text-[11px] font-semibold text-slate-500 uppercase">File ID:</span>
-                <code className="text-xs font-mono text-slate-800 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+                <code className="text-xs font-mono text-slate-800 bg-white border border-slate-200 px-1.5 py-0.5 rounded select-all">
                   {fileId.substring(0, 10)}...{fileId.substring(fileId.length - 8)}
                 </code>
                 <button
                   onClick={() => copyToClipboard(fileId, fileId)}
                   title="Copy full File ID"
-                  className="p-0.5 text-slate-400 hover:text-slate-700 transition-colors"
+                  className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-all cursor-pointer active:scale-90"
                 >
                   {copiedId === fileId ? (
                     <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
@@ -300,7 +300,7 @@ export default function SharedFiles({ signer, account, userKeys }) {
               <a
                 href={dlUrl}
                 download={fileName}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-medium transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs hover:shadow-sm"
               >
                 <Download className="w-3.5 h-3.5" /> Save File
               </a>
@@ -308,7 +308,7 @@ export default function SharedFiles({ signer, account, userKeys }) {
               <button
                 onClick={() => handleDecryptFile(fileId)}
                 disabled={isDecrypting}
-                className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
+                className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white rounded-md text-xs font-medium transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs hover:shadow-sm"
               >
                 {isDecrypting ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -322,7 +322,7 @@ export default function SharedFiles({ signer, account, userKeys }) {
         </div>
 
         {statusMsg && (
-          <div className="text-xs font-mono text-slate-700 bg-white p-2 rounded border border-slate-200">
+          <div className="text-xs font-mono text-slate-700 bg-white p-2.5 rounded-md border border-slate-200 hover:border-slate-300 transition-colors">
             {statusMsg}
           </div>
         )}
@@ -333,7 +333,7 @@ export default function SharedFiles({ signer, account, userKeys }) {
   return (
     <div className="space-y-6">
       {/* 1. Explore Files by Owner Address */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs hover:border-slate-300 transition-colors">
         <div className="border-b border-slate-100 pb-3 mb-4">
           <h3 className="text-base font-semibold text-slate-900">Query Accessible Documents by Owner</h3>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -347,12 +347,12 @@ export default function SharedFiles({ signer, account, userKeys }) {
             placeholder="Owner wallet address (0x...)"
             value={searchOwnerAddress}
             onChange={(e) => setSearchOwnerAddress(e.target.value)}
-            className="flex-1 bg-white border border-slate-300 focus:border-slate-500 rounded px-3 py-2 text-xs font-mono text-slate-900 outline-none placeholder:text-slate-400"
+            className="flex-1 bg-white border border-slate-300 hover:border-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 rounded-md px-3 py-2 text-xs font-mono text-slate-900 outline-none placeholder:text-slate-400 transition-all duration-150"
           />
           <button
             type="submit"
             disabled={isSearching || !searchOwnerAddress.trim() || !signer}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-md text-xs font-medium transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs hover:shadow-sm"
           >
             {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
             {isSearching ? 'Querying...' : 'Search Files'}

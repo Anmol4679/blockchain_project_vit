@@ -99,7 +99,7 @@ export default function RequestAccessDecrypt({ signer, userKeys }) {
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs hover:border-slate-300 transition-colors">
       <div className="border-b border-slate-100 pb-3 mb-4">
         <h3 className="text-base font-semibold text-slate-900">Direct Document Decryption</h3>
         <p className="text-xs text-slate-500 mt-0.5">
@@ -117,14 +117,14 @@ export default function RequestAccessDecrypt({ signer, userKeys }) {
             placeholder="0x... (66-character bytes32 file ID)"
             value={fileIdInput}
             onChange={(e) => setFileIdInput(e.target.value)}
-            className="w-full bg-white border border-slate-300 focus:border-slate-500 rounded px-3 py-2 text-xs font-mono text-slate-900 outline-none placeholder:text-slate-400"
+            className="w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 rounded-md px-3 py-2 text-xs font-mono text-slate-900 outline-none placeholder:text-slate-400 transition-all duration-150"
           />
         </div>
 
         <button
           onClick={handleDecryptAndDownload}
           disabled={!fileIdInput || isDecrypting || !signer}
-          className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white font-medium rounded text-xs transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white font-medium rounded-md text-xs transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] shadow-xs hover:shadow-sm"
         >
           {isDecrypting ? (
             <>
@@ -140,7 +140,7 @@ export default function RequestAccessDecrypt({ signer, userKeys }) {
         </button>
 
         {status && (
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs font-mono text-slate-700">
+          <div className="p-3 bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors rounded-md text-xs font-mono text-slate-700">
             {status}
           </div>
         )}
@@ -149,7 +149,7 @@ export default function RequestAccessDecrypt({ signer, userKeys }) {
           <a
             href={downloadUrl}
             download={downloadFileName}
-            className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded text-xs flex items-center justify-center gap-2 transition-colors shadow-sm"
+            className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-md text-xs flex items-center justify-center gap-2 transition-all duration-150 shadow-xs hover:shadow-sm active:scale-[0.99] cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" /> Download Decrypted File ({downloadFileName})
           </a>
