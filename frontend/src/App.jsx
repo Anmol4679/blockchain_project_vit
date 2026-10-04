@@ -15,7 +15,10 @@ import {
   FileText,
   Share2,
   CheckCircle2,
-  Award
+  Award,
+  ChevronRight,
+  Copy,
+  Check
 } from 'lucide-react';
 import { supabase } from './utils/supabaseClient';
 import WalletConnect from './components/WalletConnect';
@@ -51,6 +54,7 @@ function AppContent({
 }) {
   const { role } = useRole();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [copiedJWK, setCopiedJWK] = useState(false);
 
   // Close sidebar on Escape key press
   useEffect(() => {
@@ -62,6 +66,13 @@ function AppContent({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  const handleCopyJWK = () => {
+    if (!userKeys?.publicKeyJWK) return;
+    navigator.clipboard.writeText(JSON.stringify(userKeys.publicKeyJWK));
+    setCopiedJWK(true);
+    setTimeout(() => setCopiedJWK(false), 2000);
+  };
 
   const NAV_GROUPS = [
     {
@@ -137,14 +148,14 @@ function AppContent({
         {/* Sidebar Header */}
         <div className="h-16 px-5 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-slate-900 text-white rounded">
+            <div className="p-1.5 bg-slate-900 text-white rounded transition-transform duration-150 hover:scale-105">
               <HardDrive className="w-4 h-4" />
             </div>
             <span className="text-base font-bold text-slate-900 tracking-tight">BlockDrive</span>
           </div>
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-all duration-150 active:scale-90"
             aria-label="Close sidebar"
           >
             <X className="w-5 h-5" />
@@ -168,27 +179,32 @@ function AppContent({
                       setActiveTab(tab.id);
                       setIsSidebarOpen(false);
                     }}
-                    className={`w-full flex items-start gap-3 px-3 py-2 rounded text-left transition-all relative ${
+                    className={`w-full group flex items-center justify-between px-3 py-2.5 rounded-md text-left transition-all duration-150 relative cursor-pointer active:scale-[0.98] ${
                       isActive
-                        ? 'bg-slate-100 text-slate-900 font-semibold'
+                        ? 'bg-slate-100 text-slate-900 font-semibold shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
                     {/* Subtle left accent line for active item */}
                     {isActive && (
-                      <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-slate-900 rounded-r" />
+                      <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-slate-900 rounded-r transition-all duration-150" />
                     )}
-                    <div className="p-0.5 text-slate-500 shrink-0 mt-0.5">
-                      <Icon className={`w-4 h-4 ${isActive ? 'text-slate-900' : 'text-slate-500'}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold leading-snug">
-                        {tab.label}
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="p-0.5 text-slate-500 group-hover:text-slate-900 transition-colors shrink-0 mt-0.5">
+                        <Icon className={`w-4 h-4 transition-transform duration-150 group-hover:scale-110 ${isActive ? 'text-slate-900' : 'text-slate-500'}`} />
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-tight mt-0.5 font-normal">
-                        {tab.desc}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold leading-snug">
+                          {tab.label}
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-tight mt-0.5 font-normal">
+                          {tab.desc}
+                        </p>
+                      </div>
                     </div>
+                    <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-all duration-150 shrink-0 ml-1.5 ${
+                      isActive ? 'opacity-100 translate-x-0 text-slate-800' : 'opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0'
+                    }`} />
                   </button>
                 );
               })}
@@ -200,7 +216,7 @@ function AppContent({
         <div className="p-4 border-t border-slate-200 text-xs text-slate-600 bg-white flex items-center justify-between">
           <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Status</span>
           <div className="flex items-center gap-1.5 font-medium text-slate-700">
-            <span className={`w-2 h-2 rounded-full ${account ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <span className={`w-2 h-2 rounded-full transition-colors duration-200 ${account ? 'bg-emerald-500' : 'bg-slate-300'}`} />
             <span>{account ? 'Connected' : 'Disconnected'}</span>
           </div>
         </div>
@@ -214,13 +230,13 @@ function AppContent({
             <button
               onClick={() => setIsSidebarOpen(true)}
               aria-label="Open navigation sidebar"
-              className="p-2 -ml-2 mr-1 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              className="p-2 -ml-2 mr-1 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all duration-150 active:scale-95 flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-slate-300"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-5 h-5 transition-transform duration-150 hover:rotate-6" />
               <span className="text-xs font-medium text-slate-600 hidden md:inline">Menu</span>
             </button>
 
-            <div className="p-2 bg-slate-900 text-white rounded-md">
+            <div className="p-2 bg-slate-900 text-white rounded-md transition-transform duration-150 hover:scale-105">
               <HardDrive className="w-5 h-5" />
             </div>
             <div>
@@ -243,7 +259,7 @@ function AppContent({
                 <button
                   onClick={handleSignOut}
                   title="Sign Out"
-                  className="text-slate-400 hover:text-slate-700 transition-colors p-0.5"
+                  className="text-slate-400 hover:text-slate-700 transition-colors p-0.5 active:scale-90"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
@@ -255,7 +271,7 @@ function AppContent({
                     setAuthModalView('signIn');
                     setIsAuthModalOpen(true);
                   }}
-                  className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded text-xs font-medium transition-colors"
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 hover:border-slate-300 active:scale-95 border border-slate-200 text-slate-700 rounded text-xs font-medium transition-all duration-150"
                 >
                   Sign In
                 </button>
@@ -264,7 +280,7 @@ function AppContent({
                     setAuthModalView('signUp');
                     setIsAuthModalOpen(true);
                   }}
-                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-medium transition-colors"
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded text-xs font-medium transition-all duration-150"
                 >
                   Register
                 </button>
@@ -306,7 +322,7 @@ function AppContent({
           </div>
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 font-medium px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-200 font-medium px-2.5 py-1 rounded bg-slate-100 transition-all duration-150 active:scale-95 cursor-pointer shadow-2xs"
           >
             <Menu className="w-3.5 h-3.5" />
             <span>Switch Tab</span>
@@ -347,10 +363,10 @@ function AppContent({
 
         {/* Collapsible Session ECDH Public Key Inspector */}
         {userKeys && (
-          <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600 shadow-xs">
+          <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600 shadow-xs hover:border-slate-300 transition-colors">
             <button
               onClick={() => setShowKeyDetails(!showKeyDetails)}
-              className="w-full flex items-center justify-between text-slate-700 font-medium hover:text-slate-900"
+              className="w-full flex items-center justify-between text-slate-700 font-medium hover:text-slate-900 cursor-pointer"
             >
               <div className="flex items-center gap-2">
                 <Key className="w-3.5 h-3.5 text-slate-500" />
@@ -359,15 +375,27 @@ function AppContent({
               {showKeyDetails ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
             </button>
             {showKeyDetails && (
-              <div className="mt-2 pt-2 border-t border-slate-100 font-mono text-[11px] text-slate-500 break-all select-all bg-slate-50 p-2 rounded">
-                {JSON.stringify(userKeys.publicKeyJWK)}
+              <div className="mt-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] uppercase font-semibold text-slate-400">P-256 JWK Parameters</span>
+                  <button
+                    onClick={handleCopyJWK}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 px-2 py-0.5 rounded hover:bg-slate-100 transition-all duration-150 active:scale-95"
+                  >
+                    {copiedJWK ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedJWK ? 'Copied' : 'Copy JWK'}</span>
+                  </button>
+                </div>
+                <div className="font-mono text-[11px] text-slate-600 break-all select-all bg-slate-50 p-2.5 rounded border border-slate-100">
+                  {JSON.stringify(userKeys.publicKeyJWK)}
+                </div>
               </div>
             )}
           </div>
         )}
 
         {/* Subtle Security Status Footer Strip */}
-        <div className="border border-slate-200 bg-white rounded-lg p-3.5 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="border border-slate-200 bg-white rounded-lg p-3.5 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs hover:border-slate-300 transition-colors">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-slate-500 shrink-0" />
             <span className="font-semibold text-slate-800 uppercase tracking-wider text-[10px]">Security Status</span>
