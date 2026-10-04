@@ -1,6 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Shield, HardDrive, Key, User, LogOut, LogIn, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Shield,
+  HardDrive,
+  Key,
+  User,
+  LogOut,
+  LogIn,
+  ChevronDown,
+  ChevronUp,
+  Menu,
+  X,
+  Upload,
+  FileText,
+  Share2,
+  CheckCircle2,
+  Award
+} from 'lucide-react';
 import { supabase } from './utils/supabaseClient';
 import WalletConnect from './components/WalletConnect';
 import UploadFile from './components/UploadFile';
@@ -34,22 +50,125 @@ function AppContent({
   setActiveTab
 }) {
   const { role } = useRole();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Close sidebar on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsSidebarOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const TABS = [
-    { id: 'upload', label: 'Upload & Encrypt' },
-    { id: 'myfiles', label: 'My Files & Access' },
-    { id: 'shared', label: 'Shared With Me' },
-    { id: 'decrypt', label: 'Manual Decrypt' },
-    { id: 'verify', label: 'Verify Document' },
-    { id: 'issue', label: 'Issue Certificate' },
+    { id: 'upload', label: 'Upload & Encrypt', icon: Upload },
+    { id: 'myfiles', label: 'My Files & Access', icon: FileText },
+    { id: 'shared', label: 'Shared With Me', icon: Share2 },
+    { id: 'decrypt', label: 'Manual Decrypt', icon: Key },
+    { id: 'verify', label: 'Verify Document', icon: CheckCircle2 },
+    { id: 'issue', label: 'Issue Certificate', icon: Award },
   ];
+
+  const currentActiveTab = TABS.find((t) => t.id === activeTab) || TABS[0];
+  const CurrentIcon = currentActiveTab.icon;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+      {/* Backdrop Overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-[1px] z-40 transition-opacity duration-300"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Collapsible Vertical Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 bottom-0 w-72 bg-white border-r border-slate-200 z-50 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        aria-label="Navigation Sidebar"
+      >
+        {/* Sidebar Header */}
+        <div className="h-16 px-4 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-slate-900 text-white rounded-md">
+              <HardDrive className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-slate-900 tracking-tight">BlockDrive</span>
+                <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-slate-100 text-slate-600 rounded border border-slate-200">
+                  v1.0
+                </span>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+            aria-label="Close sidebar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Sidebar Navigation Items */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-1">
+          <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            Navigation Menu
+          </div>
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setIsSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
+                  isActive
+                    ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Sidebar Footer Info */}
+        <div className="p-4 border-t border-slate-200 text-xs text-slate-500 bg-slate-50">
+          <div className="flex items-center gap-2 font-medium text-slate-700 mb-1">
+            <Shield className="w-4 h-4 text-emerald-600" />
+            <span>ECDH / AES Encrypted</span>
+          </div>
+          <p className="text-[11px] text-slate-400">Decentralized Healthcare Storage</p>
+        </div>
+      </aside>
+
       {/* Enterprise Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Hamburger / Menu Button */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              aria-label="Open navigation sidebar"
+              className="p-2 -ml-2 mr-1 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-slate-300"
+            >
+              <Menu className="w-5 h-5" />
+              <span className="text-xs font-medium text-slate-600 hidden md:inline">Menu</span>
+            </button>
+
             <div className="p-2 bg-slate-900 text-white rounded-md">
               <HardDrive className="w-5 h-5" />
             </div>
@@ -124,26 +243,25 @@ function AppContent({
           onSwitchNetwork={switchToLocalhostNetwork}
         />
 
-        {/* Navigation Tabs */}
-        <nav className="border-b border-slate-200">
-          <div className="flex space-x-1 sm:space-x-4 overflow-x-auto pb-px">
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-2.5 px-3 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${isActive
-                      ? 'border-slate-900 text-slate-900 font-semibold'
-                      : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-                    }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
+        {/* Active Section Bar with Sidebar Quick Trigger */}
+        <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-slate-100 text-slate-800 rounded-md">
+              <CurrentIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Current View</span>
+              <h2 className="text-sm font-semibold text-slate-900 leading-tight">{currentActiveTab.label}</h2>
+            </div>
           </div>
-        </nav>
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors"
+          >
+            <Menu className="w-3.5 h-3.5" />
+            <span>Switch Tab</span>
+          </button>
+        </div>
 
         {/* Tab Content Panes */}
         <div>
