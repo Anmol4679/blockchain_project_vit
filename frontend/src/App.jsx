@@ -64,12 +64,42 @@ function AppContent({
   }, []);
 
   const TABS = [
-    { id: 'upload', label: 'Upload & Encrypt', icon: Upload },
-    { id: 'myfiles', label: 'My Files & Access', icon: FileText },
-    { id: 'shared', label: 'Shared With Me', icon: Share2 },
-    { id: 'decrypt', label: 'Manual Decrypt', icon: Key },
-    { id: 'verify', label: 'Verify Document', icon: CheckCircle2 },
-    { id: 'issue', label: 'Issue Certificate', icon: Award },
+    {
+      id: 'upload',
+      label: 'Upload & Encrypt',
+      desc: 'Securely upload records',
+      icon: Upload,
+    },
+    {
+      id: 'myfiles',
+      label: 'My Files & Access',
+      desc: 'Manage your documents',
+      icon: FileText,
+    },
+    {
+      id: 'shared',
+      label: 'Shared With Me',
+      desc: 'Records shared with you',
+      icon: Share2,
+    },
+    {
+      id: 'decrypt',
+      label: 'Manual Decrypt',
+      desc: 'Decrypt a document',
+      icon: Key,
+    },
+    {
+      id: 'verify',
+      label: 'Verify Document',
+      desc: 'Validate document integrity',
+      icon: CheckCircle2,
+    },
+    {
+      id: 'issue',
+      label: 'Issue Certificate',
+      desc: 'Create a digital certificate',
+      icon: Award,
+    },
   ];
 
   const currentActiveTab = TABS.find((t) => t.id === activeTab) || TABS[0];
@@ -88,13 +118,13 @@ function AppContent({
 
       {/* Collapsible Vertical Sidebar */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 w-72 bg-white border-r border-slate-200 z-50 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-white border-r border-slate-200 z-50 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Navigation Sidebar"
       >
         {/* Sidebar Header */}
-        <div className="h-16 px-4 border-b border-slate-200 flex items-center justify-between">
+        <div className="h-16 px-5 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-slate-900 text-white rounded-md">
               <HardDrive className="w-5 h-5" />
@@ -117,10 +147,10 @@ function AppContent({
           </button>
         </div>
 
-        {/* Sidebar Navigation Items */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-1">
-          <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            Navigation Menu
+        {/* Sidebar Navigation Items with Titles & Subtitles */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            Navigation
           </div>
           {TABS.map((tab) => {
             const Icon = tab.icon;
@@ -132,14 +162,27 @@ function AppContent({
                   setActiveTab(tab.id);
                   setIsSidebarOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
+                className={`w-full flex items-start gap-3.5 px-3.5 py-3 rounded-lg text-left transition-colors ${
                   isActive
-                    ? 'bg-slate-900 text-white font-semibold shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                <span>{tab.label}</span>
+                <div
+                  className={`p-1.5 rounded-md mt-0.5 shrink-0 ${
+                    isActive ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-sm font-semibold leading-tight ${isActive ? 'text-white' : 'text-slate-900'}`}>
+                    {tab.label}
+                  </div>
+                  <p className={`text-xs mt-0.5 ${isActive ? 'text-slate-300' : 'text-slate-500'}`}>
+                    {tab.desc}
+                  </p>
+                </div>
               </button>
             );
           })}
