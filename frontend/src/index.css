@@ -13,11 +13,38 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  button,
+  [role="button"] {
+    @apply transition-all duration-150 select-none;
+  }
+
+  button:active,
+  [role="button"]:active {
+    transform: scale(0.98);
+  }
+
   input[type="text"],
   input[type="email"],
   input[type="password"],
   select,
   textarea {
-    @apply transition-colors duration-150;
+    @apply transition-all duration-150;
+  }
+
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="password"]:focus,
+  select:focus,
+  textarea:focus {
+    @apply ring-2 ring-slate-900/10 border-slate-900 outline-none;
+  }
+}
+
+@layer utilities {
+  .btn-tactile {
+    @apply transition-all duration-150 active:scale-95 hover:shadow-xs;
+  }
+  .card-hover {
+    @apply transition-all duration-200 hover:border-slate-300 hover:shadow-xs;
   }
 }

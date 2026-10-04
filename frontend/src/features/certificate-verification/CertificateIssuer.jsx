@@ -187,18 +187,16 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
   // Strict Healthcare RBAC: ONLY doctor can issue certificates (medicalStaff and patient cannot)
   if (role !== "doctor") {
     return (
-      <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm text-center space-y-3">
-        <div className="mx-auto w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-1">
-          <Lock className="w-6 h-6" />
+      <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-xs text-center max-w-lg mx-auto my-6">
+        <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center mx-auto mb-3">
+          <Lock className="w-5 h-5 text-slate-700" />
         </div>
-        <div>
-          <h3 className="text-base font-semibold text-slate-900 mb-1">Access Restricted</h3>
-          <p className="text-sm text-slate-600 max-w-md mx-auto">
-            Only verified doctors can issue medical certificates.
-          </p>
-          <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
-            Medical staff and patients cannot issue official certificates.
-          </p>
+        <h3 className="text-sm font-semibold text-slate-900 mb-1">Access Restricted</h3>
+        <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+          Certificate issuance is restricted to verified medical doctors on the decentralized registry.
+        </p>
+        <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400">
+          Medical staff and patients cannot issue official certificates. Select the Doctor role in the wallet panel to test this feature.
         </div>
       </div>
     );
@@ -250,20 +248,29 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
           <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">
             1. Document File (Fingerprint Source) *
           </label>
-          <div className="border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50 rounded-lg p-6 text-center transition-colors cursor-pointer relative">
+          <div className="group border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50/90 rounded-lg p-6 text-center transition-all duration-200 cursor-pointer relative hover:shadow-xs">
             <input
               type="file"
               id="issueFileInput"
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
               onChange={handleFileChange}
               disabled={isProcessing}
             />
-            <div className="flex flex-col items-center">
-              <UploadCloud className="w-6 h-6 text-slate-500 mb-2" />
-              <span className="text-sm font-medium text-slate-800">
-                {file ? file.name : "Select certificate file (PDF, Document, Image)"}
+            <div className="flex flex-col items-center pointer-events-none">
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200 mb-2 text-slate-500 shadow-2xs transition-all duration-200 group-hover:scale-110 group-hover:text-slate-900 group-hover:border-slate-300">
+                <UploadCloud className="w-5 h-5 transition-transform duration-200 group-hover:scale-105" />
+              </div>
+              <span className="text-sm font-medium text-slate-800 transition-colors group-hover:text-slate-900">
+                {file ? (
+                  <span className="inline-flex items-center gap-1.5 text-slate-900 font-semibold bg-white px-3 py-1 rounded-md border border-slate-200 shadow-2xs">
+                    <FileText className="w-4 h-4 text-slate-600" />
+                    {file.name}
+                  </span>
+                ) : (
+                  "Select certificate file (PDF, Document, Image)"
+                )}
               </span>
-              <span className="text-xs text-slate-400 mt-0.5">
+              <span className="text-xs text-slate-400 mt-1 transition-colors group-hover:text-slate-500">
                 Cryptographic Keccak-256 fingerprint will be computed client-side
               </span>
             </div>
@@ -272,19 +279,19 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
 
         {/* Calculated Fingerprint Preview */}
         {documentHash && (
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="p-3 bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors rounded-md text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <span className="text-slate-500 font-semibold uppercase text-[10px] block">
                 Calculated Fingerprint (Keccak-256):
               </span>
-              <code className="text-slate-800 font-mono font-medium truncate block">
+              <code className="text-slate-800 font-mono font-medium truncate block select-all">
                 {documentHash}
               </code>
             </div>
             <button
               type="button"
               onClick={() => copyToClipboard(documentHash, 'hash')}
-              className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 rounded border border-slate-200 text-xs shrink-0 flex items-center gap-1.5 self-start sm:self-center"
+              className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 rounded border border-slate-200 text-xs shrink-0 flex items-center gap-1.5 self-start sm:self-center cursor-pointer active:scale-95 transition-all shadow-2xs"
             >
               {copiedHash ? <CheckCheck className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copiedHash ? 'Copied' : 'Copy'}</span>
@@ -303,7 +310,7 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
             placeholder="e.g. John Doe, Patient ID: P-2026-0042"
             value={recipientName}
             onChange={(e) => setRecipientName(e.target.value)}
-            className="w-full bg-white border border-slate-300 focus:border-slate-500 rounded px-3 py-2 text-xs text-slate-900 outline-none"
+            className="w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 rounded-md px-3 py-2 text-xs text-slate-900 outline-none transition-all duration-150"
           />
         </div>
 
@@ -316,7 +323,7 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
             <select
               value={documentType}
               onChange={(e) => setDocumentType(e.target.value)}
-              className="w-full bg-white border border-slate-300 focus:border-slate-500 rounded px-3 py-2 text-xs text-slate-900 outline-none"
+              className="w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 rounded-md px-3 py-2 text-xs text-slate-900 outline-none transition-all duration-150 cursor-pointer"
             >
               {PRESET_TYPES.map((type) => (
                 <option key={type} value={type}>{type}</option>
@@ -335,7 +342,7 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
                 placeholder="e.g. Surgical Clearance, Eye Examination"
                 value={customDocType}
                 onChange={(e) => setCustomDocType(e.target.value)}
-                className="w-full bg-white border border-slate-300 focus:border-slate-500 rounded px-3 py-2 text-xs text-slate-900 outline-none"
+                className="w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 rounded-md px-3 py-2 text-xs text-slate-900 outline-none transition-all duration-150"
               />
             </div>
           )}
@@ -351,17 +358,17 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
             placeholder="ipfs://Qm... or https://..."
             value={metadataURI}
             onChange={(e) => setMetadataURI(e.target.value)}
-            className="w-full bg-white border border-slate-300 focus:border-slate-500 rounded px-3 py-2 text-xs font-mono text-slate-900 outline-none"
+            className="w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 rounded-md px-3 py-2 text-xs font-mono text-slate-900 outline-none transition-all duration-150"
           />
         </div>
 
         {!signer && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-900 flex items-center justify-between">
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-900 flex items-center justify-between">
             <span>Connect authorized doctor wallet to issue certificate on-chain.</span>
             <button
               type="button"
               onClick={onConnectWallet}
-              className="font-semibold underline hover:text-amber-950 ml-2"
+              className="font-semibold underline hover:text-amber-950 ml-2 cursor-pointer active:scale-95 transition-all"
             >
               Connect Wallet
             </button>
@@ -371,7 +378,10 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
         <button
           type="submit"
           disabled={isProcessing || !signer || !file || !recipientName.trim()}
-          className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white font-medium rounded text-xs transition-colors flex items-center justify-center gap-2 shadow-sm"
+          className={`w-full py-2.5 px-4 font-medium text-xs rounded-md transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] ${!signer || !file || !recipientName.trim()
+              ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+              : 'bg-slate-900 hover:bg-slate-800 text-white shadow-xs hover:shadow-sm'
+            }`}
         >
           {isProcessing ? (
             <>
