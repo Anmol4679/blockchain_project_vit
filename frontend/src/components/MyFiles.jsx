@@ -73,17 +73,32 @@ export default function MyFiles({ signer, account, userKeys }) {
         }
       }
 
-      // If connected to blockchain, on-chain records are authoritative
-      let uniqueIds = [];
-      if (signer) {
-        uniqueIds = onChainIds.slice().reverse();
-      } else {
-        // Offline fallback only
-        const cachedKeys = Object.keys(cachedMeta);
-        uniqueIds = cachedKeys.filter(id => {
-          const item = cachedMeta[id];
-          return item && (!item.owner || item.owner.toLowerCase() === account.toLowerCase());
-        }).reverse();
+      // Prioritize on-chain files for this account
+      const uniqueLower = new Set();
+      const uniqueIds = [];
+
+      // Add on-chain IDs (reversed so newest are first)
+      for (const id of [...onChainIds].reverse()) {
+        const lower = id.toLowerCase();
+        if (!uniqueLower.has(lower)) {
+          uniqueLower.add(lower);
+          uniqueIds.push(id);
+        }
+      }
+
+      // Only add cached IDs if they belong to this account and are not already in list
+      const cachedKeys = Object.keys(cachedMeta);
+      for (const id of cachedKeys.reverse()) {
+        const item = cachedMeta[id];
+        const lower = id.toLowerCase();
+        if (
+          !uniqueLower.has(lower) &&
+          item &&
+          (!item.owner || item.owner.toLowerCase() === account.toLowerCase())
+        ) {
+          uniqueLower.add(lower);
+          uniqueIds.push(item.fileId || id);
+        }
       }
 
       // Load metadata for each file
@@ -137,14 +152,6 @@ export default function MyFiles({ signer, account, userKeys }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleClearLocalCache = () => {
-    localStorage.removeItem('blockdrive_files_metadata');
-    localStorage.removeItem('blockdrive_file_aes_keys');
-    setFileDetails({});
-    setFiles([]);
-    if (loadFiles) loadFiles();
   };
 
   const handleDecryptAndDownload = async (fileId) => {
@@ -445,14 +452,6 @@ export default function MyFiles({ signer, account, userKeys }) {
           >
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
             {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button
-            onClick={handleClearLocalCache}
-            title="Clear old cached records"
-            className="text-xs px-2.5 py-1.5 bg-white hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 active:scale-95 text-slate-500 rounded-md border border-slate-200 font-medium transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-            <span>Clear History</span>
           </button>
         </div>
       </div>
