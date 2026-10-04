@@ -20,11 +20,14 @@ import {
   AlertCircle,
   Download,
   Unlock,
-  Trash2
+  Trash2,
+  Lock,
+  Share2
 } from 'lucide-react';
 import { getFileRegistryContract } from '../utils/contracts';
 import { wrapKeyForRecipient, unwrapKeyForRecipient, importRawKey, decryptFile } from '../utils/crypto';
 import { downloadFromIPFS } from '../utils/ipfs';
+import { useRole } from '../context/RoleContext';
 
 function formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
@@ -34,7 +37,8 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-export default function MyFiles({ signer, account, userKeys }) {
+export default function MyFiles({ signer, account, userKeys, onNavigateTab }) {
+  const { role, loading: roleLoading } = useRole();
   const [files, setFiles] = useState([]);
   const [fileDetails, setFileDetails] = useState({});
   const [loading, setLoading] = useState(false);
@@ -420,6 +424,44 @@ export default function MyFiles({ signer, account, userKeys }) {
       setRevokingAddress(null);
     }
   };
+
+  if (roleLoading) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm flex items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-slate-400 mr-2" />
+        <span className="text-sm text-slate-500">Verifying healthcare credentials...</span>
+      </div>
+    );
+  }
+
+  // Strict Healthcare RBAC: Only doctor and medicalStaff can manage file access & register files
+  if (role !== "doctor" && role !== "medicalStaff") {
+    return (
+      <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm text-center space-y-4">
+        <div className="mx-auto w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-1">
+          <Lock className="w-6 h-6" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-slate-900 mb-1">Access Restricted</h3>
+          <p className="text-sm text-slate-600 max-w-md mx-auto">
+            Only verified doctors and medical staff can manage access permissions and registered files.
+          </p>
+          <p className="text-xs text-slate-500 max-w-md mx-auto mt-2">
+            As a <strong>Patient</strong>, you can view and decrypt medical records shared with you in the <span className="font-semibold text-slate-800">"Shared With Me"</span> section.
+          </p>
+        </div>
+        {onNavigateTab && (
+          <button
+            onClick={() => onNavigateTab('shared')}
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded-md text-xs font-semibold inline-flex items-center gap-2 shadow-xs cursor-pointer transition-all"
+          >
+            <Share2 className="w-4 h-4" />
+            <span>Go to Shared With Me</span>
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">

@@ -342,7 +342,12 @@ function AppContent({
             />
           )}
           {activeTab === 'myfiles' && (
-            <MyFiles signer={signer} account={account} userKeys={userKeys} />
+            <MyFiles
+              signer={signer}
+              account={account}
+              userKeys={userKeys}
+              onNavigateTab={setActiveTab}
+            />
           )}
           {activeTab === 'shared' && (
             <SharedFiles signer={signer} account={account} userKeys={userKeys} />
