@@ -63,54 +63,65 @@ function AppContent({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const TABS = [
+  const NAV_GROUPS = [
     {
-      id: 'upload',
-      label: 'Upload & Encrypt',
-      desc: 'Securely upload records',
-      icon: Upload,
+      title: 'WORKSPACE',
+      items: [
+        {
+          id: 'upload',
+          label: 'Upload & Encrypt',
+          desc: 'Securely upload records',
+          icon: Upload,
+        },
+        {
+          id: 'myfiles',
+          label: 'My Files & Access',
+          desc: 'Manage your documents',
+          icon: FileText,
+        },
+        {
+          id: 'shared',
+          label: 'Shared With Me',
+          desc: 'Records shared with you',
+          icon: Share2,
+        },
+      ],
     },
     {
-      id: 'myfiles',
-      label: 'My Files & Access',
-      desc: 'Manage your documents',
-      icon: FileText,
-    },
-    {
-      id: 'shared',
-      label: 'Shared With Me',
-      desc: 'Records shared with you',
-      icon: Share2,
-    },
-    {
-      id: 'decrypt',
-      label: 'Manual Decrypt',
-      desc: 'Decrypt a document',
-      icon: Key,
-    },
-    {
-      id: 'verify',
-      label: 'Verify Document',
-      desc: 'Validate document integrity',
-      icon: CheckCircle2,
-    },
-    {
-      id: 'issue',
-      label: 'Issue Certificate',
-      desc: 'Create a digital certificate',
-      icon: Award,
+      title: 'SECURITY',
+      items: [
+        {
+          id: 'decrypt',
+          label: 'Manual Decrypt',
+          desc: 'Decrypt a document',
+          icon: Key,
+        },
+        {
+          id: 'verify',
+          label: 'Verify Document',
+          desc: 'Validate document integrity',
+          icon: CheckCircle2,
+        },
+        {
+          id: 'issue',
+          label: 'Issue Certificate',
+          desc: 'Create a digital certificate',
+          icon: Award,
+        },
+      ],
     },
   ];
 
-  const currentActiveTab = TABS.find((t) => t.id === activeTab) || TABS[0];
+  const allTabs = NAV_GROUPS.flatMap((g) => g.items);
+  const currentActiveTab = allTabs.find((t) => t.id === activeTab) || allTabs[0];
   const CurrentIcon = currentActiveTab.icon;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between">
       {/* Backdrop Overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-[1px] z-40 transition-opacity duration-300"
+          className="fixed inset-0 bg-slate-900/30 backdrop-blur-[1px] z-40 transition-opacity duration-200"
           onClick={() => setIsSidebarOpen(false)}
           aria-hidden="true"
         />
@@ -118,83 +129,80 @@ function AppContent({
 
       {/* Collapsible Vertical Sidebar */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-white border-r border-slate-200 z-50 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white border-r border-slate-200 z-50 shadow-lg flex flex-col transform transition-transform duration-200 ease-in-out ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Navigation Sidebar"
       >
         {/* Sidebar Header */}
         <div className="h-16 px-5 border-b border-slate-200 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-900 text-white rounded-md">
-              <HardDrive className="w-5 h-5" />
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-slate-900 text-white rounded">
+              <HardDrive className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-slate-900 tracking-tight">BlockDrive</span>
-                <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-slate-100 text-slate-600 rounded border border-slate-200">
-                  v1.0
-                </span>
-              </div>
-            </div>
+            <span className="text-base font-bold text-slate-900 tracking-tight">BlockDrive</span>
           </div>
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
             aria-label="Close sidebar"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Sidebar Navigation Items with Titles & Subtitles */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            Navigation
-          </div>
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setIsSidebarOpen(false);
-                }}
-                className={`w-full flex items-start gap-3.5 px-3.5 py-3 rounded-lg text-left transition-colors ${
-                  isActive
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <div
-                  className={`p-1.5 rounded-md mt-0.5 shrink-0 ${
-                    isActive ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className={`text-sm font-semibold leading-tight ${isActive ? 'text-white' : 'text-slate-900'}`}>
-                    {tab.label}
-                  </div>
-                  <p className={`text-xs mt-0.5 ${isActive ? 'text-slate-300' : 'text-slate-500'}`}>
-                    {tab.desc}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
+        {/* Sidebar Grouped Navigation */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.title} className="space-y-1">
+              <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                {group.title}
+              </div>
+              {group.items.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setIsSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-start gap-3 px-3 py-2 rounded text-left transition-all relative ${
+                      isActive
+                        ? 'bg-slate-100 text-slate-900 font-semibold'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    {/* Subtle left accent line for active item */}
+                    {isActive && (
+                      <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-slate-900 rounded-r" />
+                    )}
+                    <div className="p-0.5 text-slate-500 shrink-0 mt-0.5">
+                      <Icon className={`w-4 h-4 ${isActive ? 'text-slate-900' : 'text-slate-500'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold leading-snug">
+                        {tab.label}
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-tight mt-0.5 font-normal">
+                        {tab.desc}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
 
         {/* Sidebar Footer Info */}
-        <div className="p-4 border-t border-slate-200 text-xs text-slate-500 bg-slate-50">
-          <div className="flex items-center gap-2 font-medium text-slate-700 mb-1">
-            <Shield className="w-4 h-4 text-emerald-600" />
-            <span>ECDH / AES Encrypted</span>
+        <div className="p-4 border-t border-slate-200 text-xs text-slate-600 bg-white flex items-center justify-between">
+          <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Status</span>
+          <div className="flex items-center gap-1.5 font-medium text-slate-700">
+            <span className={`w-2 h-2 rounded-full ${account ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            <span>{account ? 'Connected' : 'Disconnected'}</span>
           </div>
-          <p className="text-[11px] text-slate-400">Decentralized Healthcare Storage</p>
         </div>
       </aside>
 
@@ -276,7 +284,7 @@ function AppContent({
           onAuthSuccess={(user) => setAuthUser(user)}
         />
 
-        {/* Web3 Wallet Connection Card with 1-Click Role Switcher */}
+        {/* Web3 Wallet Connection Card */}
         <WalletConnect
           account={account}
           onConnect={connectWallet}
@@ -286,20 +294,19 @@ function AppContent({
           onSwitchNetwork={switchToLocalhostNetwork}
         />
 
-        {/* Active Section Bar with Sidebar Quick Trigger */}
-        <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-slate-100 text-slate-800 rounded-md">
-              <CurrentIcon className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Current View</span>
-              <h2 className="text-sm font-semibold text-slate-900 leading-tight">{currentActiveTab.label}</h2>
-            </div>
+        {/* Clean Page Breadcrumb / View Header */}
+        <div className="flex items-center justify-between pb-1 border-b border-slate-200">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <span className="font-medium text-slate-400">BlockDrive</span>
+            <span>/</span>
+            <span className="font-semibold text-slate-900 flex items-center gap-1.5">
+              <CurrentIcon className="w-3.5 h-3.5 text-slate-600" />
+              {currentActiveTab.label}
+            </span>
           </div>
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 font-medium px-2 py-1 rounded hover:bg-slate-100 transition-colors"
           >
             <Menu className="w-3.5 h-3.5" />
             <span>Switch Tab</span>
@@ -340,7 +347,7 @@ function AppContent({
 
         {/* Collapsible Session ECDH Public Key Inspector */}
         {userKeys && (
-          <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
+          <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600 shadow-xs">
             <button
               onClick={() => setShowKeyDetails(!showKeyDetails)}
               className="w-full flex items-center justify-between text-slate-700 font-medium hover:text-slate-900"
@@ -358,6 +365,28 @@ function AppContent({
             )}
           </div>
         )}
+
+        {/* Subtle Security Status Footer Strip */}
+        <div className="border border-slate-200 bg-white rounded-lg p-3.5 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 text-slate-500 shrink-0" />
+            <span className="font-semibold text-slate-800 uppercase tracking-wider text-[10px]">Security Status</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${account ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              <span>{account ? 'Wallet connected' : 'Wallet not connected'}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${userKeys ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              <span>{userKeys ? 'Encryption available' : 'Session keys pending'}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${account ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              <span>Access control active</span>
+            </span>
+          </div>
+        </div>
       </main>
 
       {/* Formal Footer */}

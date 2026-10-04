@@ -187,18 +187,16 @@ export default function CertificateIssuer({ signer, account, onConnectWallet }) 
   // Strict Healthcare RBAC: ONLY doctor can issue certificates (medicalStaff and patient cannot)
   if (role !== "doctor") {
     return (
-      <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm text-center space-y-3">
-        <div className="mx-auto w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-1">
-          <Lock className="w-6 h-6" />
+      <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-xs text-center max-w-lg mx-auto my-6">
+        <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center mx-auto mb-3">
+          <Lock className="w-5 h-5 text-slate-700" />
         </div>
-        <div>
-          <h3 className="text-base font-semibold text-slate-900 mb-1">Access Restricted</h3>
-          <p className="text-sm text-slate-600 max-w-md mx-auto">
-            Only verified doctors can issue medical certificates.
-          </p>
-          <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
-            Medical staff and patients cannot issue official certificates.
-          </p>
+        <h3 className="text-sm font-semibold text-slate-900 mb-1">Access Restricted</h3>
+        <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+          Certificate issuance is restricted to verified medical doctors on the decentralized registry.
+        </p>
+        <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400">
+          Medical staff and patients cannot issue official certificates. Select the Doctor role in the wallet panel to test this feature.
         </div>
       </div>
     );

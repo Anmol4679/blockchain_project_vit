@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ethers } from 'ethers';
-import { Wallet, ShieldCheck, AlertCircle, RefreshCw, Loader2, UserCheck } from 'lucide-react';
+import { Wallet, ShieldCheck, AlertCircle, RefreshCw, Loader2, UserCheck, Copy, Check } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
 import {
   onboardDoctor,
@@ -20,6 +20,7 @@ export default function WalletConnect({
   const isLocalOrSepolia = chainId === "0x7a69" || chainId === "0xaa36a7" || chainId === "31337" || chainId === "11155111";
   const { role, refreshRole } = useRole();
   const [isSwitching, setIsSwitching] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const getRoleBadge = (roleName) => {
     switch (roleName) {
@@ -48,6 +49,18 @@ export default function WalletConnect({
   };
 
   const roleBadge = getRoleBadge(role);
+
+  const handleCopy = () => {
+    if (!account) return;
+    navigator.clipboard.writeText(account);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const formatAddress = (addr) => {
+    if (!addr) return '';
+    return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
+  };
 
   const handleSwitchRole = async (targetRole) => {
     if (!account) return;
@@ -89,14 +102,14 @@ export default function WalletConnect({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
-      <div className="flex items-start md:items-center gap-3.5">
+    <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs">
+      <div className="flex items-center gap-3.5 min-w-0">
         <div className="p-2.5 bg-slate-100 text-slate-700 rounded-md border border-slate-200 shrink-0">
           <Wallet className="w-5 h-5" />
         </div>
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Web3 Wallet Interface</h2>
+            <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wide">Web3 Wallet Interface</h2>
             {account && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -104,13 +117,26 @@ export default function WalletConnect({
               </span>
             )}
           </div>
-          <div className="text-xs text-slate-600 mt-0.5">
+          <div className="text-xs text-slate-600 mt-1">
             {account ? (
-              <div className="font-mono text-xs text-slate-700 flex items-center gap-1.5 flex-wrap">
-                <span>Account:</span>
-                <span className="bg-slate-50 text-slate-900 font-semibold px-2 py-0.5 rounded border border-slate-200 select-all">
-                  {account}
-                </span>
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="text-slate-400 font-medium">Account:</span>
+                <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded px-2 py-0.5">
+                  <span className="font-mono font-medium text-slate-800 text-xs">
+                    {formatAddress(account)}
+                  </span>
+                  <button
+                    onClick={handleCopy}
+                    title="Copy full wallet address"
+                    className="p-0.5 text-slate-400 hover:text-slate-700 transition-colors"
+                  >
+                    {copied ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${roleBadge.classes}`}>
                   {roleBadge.label}
                 </span>
