@@ -65,6 +65,17 @@ export default function WalletConnect({
   const handleSwitchRole = async (targetRole) => {
     if (!account) return;
     setIsSwitching(true);
+    const cleanAccount = account.toLowerCase();
+
+    // 1. Immediately persist chosen role override locally so role changes immediately in UI
+    localStorage.setItem(`blockdrive_role_override_${cleanAccount}`, targetRole);
+
+    // 2. Refresh role context state immediately
+    if (refreshRole) {
+      await refreshRole();
+    }
+
+    // 3. Attempt on-chain registration in background if local test node or provider is active
     try {
       const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
       const adminSigner = new ethers.Wallet(
@@ -92,11 +103,10 @@ export default function WalletConnect({
       } else if (targetRole === 'patient') {
         await onboardPatient(adminSigner, account);
       }
-
-      if (refreshRole) await refreshRole();
     } catch (err) {
-      console.error("Failed to switch role:", err);
+      console.warn("On-chain role registration skipped (node offline or custom network), role set active in UI:", err.message);
     } finally {
+      if (refreshRole) await refreshRole();
       setIsSwitching(false);
     }
   };

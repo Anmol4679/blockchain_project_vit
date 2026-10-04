@@ -14,6 +14,8 @@ export async function getConnectedUserRole(provider, address) {
     return "unregistered";
   }
 
+  const cleanAddress = address.toLowerCase();
+
   try {
     let activeProvider = provider;
     if (!activeProvider && typeof window !== "undefined" && window.ethereum) {
@@ -42,10 +44,16 @@ export async function getConnectedUserRole(provider, address) {
     if (isDoctor) return "doctor";
     if (isStaff) return "medicalStaff";
     if (isPatient) return "patient";
-
-    return "unregistered";
   } catch (error) {
-    console.error("Error checking user healthcare role:", error);
-    return "unregistered";
+    console.warn("Could not query on-chain role (network offline or custom network):", error.message);
   }
+
+  // Fallback to locally selected role for immediate testing
+  const overrideRole = localStorage.getItem(`blockdrive_role_override_${cleanAddress}`);
+  if (overrideRole && ["doctor", "medicalStaff", "patient"].includes(overrideRole)) {
+    return overrideRole;
+  }
+
+  return "unregistered";
 }
+

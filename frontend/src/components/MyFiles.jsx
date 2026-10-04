@@ -173,7 +173,14 @@ export default function MyFiles({ signer, account, userKeys }) {
     }
   };
 
+  const [manualFileId, setManualFileId] = useState('');
+
   const handleGrantAccess = async (fileId) => {
+    const targetFileId = (fileId === 'custom' ? manualFileId : fileId).trim();
+    if (!targetFileId) {
+      setAuthStatus('Error: Please provide a valid File Identifier.');
+      return;
+    }
     if (!recipientAddress || !signer) return;
     setIsSubmittingAuth(true);
     setAuthStatus('Locating file AES key...');
@@ -184,13 +191,13 @@ export default function MyFiles({ signer, account, userKeys }) {
 
       let fileAesKey = null;
       const cachedFileKeys = JSON.parse(localStorage.getItem('blockdrive_file_aes_keys') || '{}');
-      const rawHex = cachedFileKeys[fileId.toLowerCase()];
+      const rawHex = cachedFileKeys[targetFileId.toLowerCase()];
 
       if (rawHex) {
         const rawBytes = ethers.getBytes(rawHex);
         fileAesKey = await importRawKey(rawBytes);
       } else {
-        const record = await contract.getFileRecord(fileId);
+        const record = await contract.getFileRecord(targetFileId);
         if (record.callerWrappedKey && record.callerWrappedKey !== '0x' && userKeys?.privateKeyJWK) {
           const wrappedBytes = ethers.getBytes(record.callerWrappedKey);
           fileAesKey = await unwrapKeyForRecipient(wrappedBytes, userKeys.privateKeyJWK);
@@ -293,21 +300,32 @@ export default function MyFiles({ signer, account, userKeys }) {
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 mb-5 gap-3">
         <div>
-          <h3 className="text-base font-semibold text-slate-900">Registered Documents</h3>
+          <h3 className="text-base font-semibold text-slate-900">Registered Documents & Access Control</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Documents registered on-chain by your active wallet address.
+            Manage your on-chain records and authorize or revoke recipient decryption access.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs px-2.5 py-1 bg-slate-100 text-slate-700 font-medium rounded border border-slate-200">
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          <button
+            onClick={() => {
+              setSelectedFileId(files[0] || 'custom');
+              setActiveRecipients([]);
+              setAuthStatus('');
+            }}
+            className="text-xs px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-medium rounded-md transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Grant Access</span>
+          </button>
+          <span className="text-xs px-2.5 py-1.5 bg-slate-100 text-slate-700 font-medium rounded-md border border-slate-200">
             {files.length} {files.length === 1 ? 'Record' : 'Records'}
           </span>
           <button
             onClick={loadFiles}
             disabled={loading}
-            className="text-xs px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded border border-slate-200 font-medium transition-colors flex items-center gap-1.5"
+            className="text-xs px-3 py-1.5 bg-white hover:bg-slate-50 active:scale-95 text-slate-700 rounded-md border border-slate-200 font-medium transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
           >
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
             {loading ? 'Refreshing...' : 'Refresh'}
@@ -316,12 +334,27 @@ export default function MyFiles({ signer, account, userKeys }) {
       </div>
 
       {files.length === 0 ? (
-        <div className="py-12 text-center bg-slate-50/50 rounded border border-dashed border-slate-200 p-6">
-          <FileText className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-          <h4 className="text-sm font-semibold text-slate-800">No Registered Files Found</h4>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            Your connected wallet (<code className="font-mono text-slate-700">{account ? `${account.substring(0, 6)}...${account.substring(account.length - 4)}` : '0x...'}</code>) has not registered any documents yet.
-          </p>
+        <div className="py-10 text-center bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-6 space-y-3">
+          <FileText className="w-8 h-8 text-slate-400 mx-auto" />
+          <div>
+            <h4 className="text-sm font-semibold text-slate-800">No Registered Files Found</h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              Your connected wallet (<code className="font-mono text-slate-700 select-all">{account ? `${account.substring(0, 6)}...${account.substring(account.length - 4)}` : '0x...'}</code>) has not uploaded records yet.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => {
+                setSelectedFileId('custom');
+                setActiveRecipients([]);
+                setAuthStatus('');
+              }}
+              className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-md text-xs font-medium transition-all active:scale-95 cursor-pointer shadow-2xs flex items-center gap-1.5"
+            >
+              <Users className="w-3.5 h-3.5 text-slate-500" />
+              <span>Authorize Access by File ID</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -504,16 +537,31 @@ export default function MyFiles({ signer, account, userKeys }) {
               <UserPlus className="w-3.5 h-3.5 text-slate-600" /> Authorize New Recipient
             </h5>
 
+            {selectedFileId === 'custom' && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Document File Identifier (bytes32 Hex) *
+                </label>
+                <input
+                  type="text"
+                  placeholder="0x... (66-character bytes32 file ID)"
+                  value={manualFileId}
+                  onChange={(e) => setManualFileId(e.target.value)}
+                  className="w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 rounded-md px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-150"
+                />
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
-                Recipient Wallet Address
+                Recipient Wallet Address *
               </label>
               <input
                 type="text"
                 placeholder="0x..."
                 value={recipientAddress}
                 onChange={(e) => setRecipientAddress(e.target.value)}
-                className="w-full bg-white border border-slate-300 focus:border-slate-500 rounded px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 outline-none"
+                className="w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 rounded-md px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-150"
               />
             </div>
 
@@ -526,7 +574,7 @@ export default function MyFiles({ signer, account, userKeys }) {
                 rows={2}
                 value={recipientPubKeyJWK}
                 onChange={(e) => setRecipientPubKeyJWK(e.target.value)}
-                className="w-full bg-white border border-slate-300 focus:border-slate-500 rounded px-3 py-2 text-xs font-mono text-slate-800 placeholder:text-slate-400 outline-none"
+                className="w-full bg-white border border-slate-300 hover:border-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 rounded-md px-3 py-2 text-xs font-mono text-slate-800 placeholder:text-slate-400 outline-none transition-all duration-150"
               />
             </div>
 
