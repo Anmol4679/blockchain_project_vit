@@ -170,10 +170,10 @@ export default function WalletConnect({
             <button
               onClick={() => handleSwitchRole('doctor')}
               disabled={isSwitching || role === 'doctor'}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-all duration-150 cursor-pointer active:scale-95 ${
+              className={`px-2.5 py-1 text-xs font-medium rounded transition-all duration-150 cursor-pointer ${
                 role === 'doctor'
                   ? 'bg-blue-600 text-white shadow-2xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200 hover:-translate-y-0.5 active:scale-95'
               }`}
             >
               Doctor
@@ -181,10 +181,10 @@ export default function WalletConnect({
             <button
               onClick={() => handleSwitchRole('medicalStaff')}
               disabled={isSwitching || role === 'medicalStaff'}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-all duration-150 cursor-pointer active:scale-95 ${
+              className={`px-2.5 py-1 text-xs font-medium rounded transition-all duration-150 cursor-pointer ${
                 role === 'medicalStaff'
                   ? 'bg-teal-600 text-white shadow-2xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200 hover:-translate-y-0.5 active:scale-95'
               }`}
             >
               Medical Staff
@@ -192,10 +192,10 @@ export default function WalletConnect({
             <button
               onClick={() => handleSwitchRole('patient')}
               disabled={isSwitching || role === 'patient'}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-all duration-150 cursor-pointer active:scale-95 ${
+              className={`px-2.5 py-1 text-xs font-medium rounded transition-all duration-150 cursor-pointer ${
                 role === 'patient'
                   ? 'bg-emerald-600 text-white shadow-2xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200 hover:-translate-y-0.5 active:scale-95'
               }`}
             >
               Patient
@@ -206,7 +206,7 @@ export default function WalletConnect({
         {account && !isLocalOrSepolia && (
           <button
             onClick={onSwitchNetwork}
-            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-medium rounded transition-all duration-150 shadow-2xs cursor-pointer"
+            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-medium rounded transition-all duration-150 shadow-2xs cursor-pointer interactive-lift-subtle"
           >
             Switch to Localhost
           </button>
@@ -216,7 +216,7 @@ export default function WalletConnect({
           <button
             onClick={onConnect}
             title="Request account switch in MetaMask"
-            className="px-2.5 py-1.5 bg-white hover:bg-slate-50 hover:border-slate-300 active:scale-95 text-slate-700 border border-slate-200 rounded text-xs font-medium transition-all duration-150 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            className="px-2.5 py-1.5 bg-white hover:bg-slate-50 hover:border-slate-300 active:scale-95 text-slate-700 border border-slate-200 rounded text-xs font-medium transition-all duration-150 flex items-center gap-1.5 shadow-2xs cursor-pointer interactive-lift-subtle"
           >
             <RefreshCw className="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 group-hover:rotate-180" />
             Switch Account
@@ -225,7 +225,7 @@ export default function WalletConnect({
           <button
             onClick={onConnect}
             disabled={isConnecting}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 active:scale-95 disabled:bg-slate-300 text-white text-xs font-medium rounded shadow-xs transition-all duration-150 flex items-center gap-2 cursor-pointer"
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 active:scale-95 disabled:bg-slate-300 text-white text-xs font-medium rounded shadow-xs transition-all duration-150 flex items-center gap-2 cursor-pointer interactive-lift-subtle"
           >
             <Wallet className="w-3.5 h-3.5" />
             {isConnecting ? "Connecting..." : "Connect MetaMask"}

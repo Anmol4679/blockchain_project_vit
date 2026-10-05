@@ -151,8 +151,8 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
       </div>
 
       <div className="space-y-4">
-        {/* Upload Drop Zone with Rich Hover & Focus States */}
-        <div className="group border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50/90 rounded-lg p-8 text-center transition-all duration-200 cursor-pointer hover:shadow-xs relative">
+        {/* Upload Drop Zone with Subtle Lift Hover */}
+        <div className="group border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50/90 rounded-lg p-8 text-center cursor-pointer relative interactive-lift-subtle">
           <input
             type="file"
             id="fileInput"
@@ -161,7 +161,7 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
             disabled={isProcessing}
           />
           <div className="flex flex-col items-center pointer-events-none">
-            <div className="p-3.5 bg-white rounded-lg border border-slate-200 mb-3 text-slate-600 shadow-2xs transition-all duration-200 group-hover:scale-110 group-hover:border-slate-300 group-hover:text-slate-900">
+            <div className="p-3.5 bg-white rounded-lg border border-slate-200 mb-3 text-slate-600 shadow-2xs transition-all duration-200 group-hover:scale-105 group-hover:border-slate-300 group-hover:text-slate-900">
               <Lock className="w-5 h-5 transition-transform duration-200 group-hover:scale-105" />
             </div>
             <span className="text-sm font-medium text-slate-800 transition-colors duration-150 group-hover:text-slate-900">

@@ -136,7 +136,7 @@ export default function CertificateVerifier({ initialHash = '' }) {
           <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">
             1. Document File Verification
           </label>
-          <div className="group border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50/90 rounded-lg p-6 text-center transition-all duration-200 cursor-pointer relative hover:shadow-xs">
+          <div className="group border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50/90 rounded-lg p-6 text-center cursor-pointer relative interactive-lift-subtle">
             <input
               type="file"
               id="verifyFileInput"

@@ -52,10 +52,54 @@
 }
 
 @layer utilities {
+  .interactive-lift {
+    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease;
+    will-change: transform, box-shadow;
+  }
+  .interactive-lift:hover {
+    transform: translateY(-2px) scale(1.012);
+    box-shadow: 0 6px 16px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -2px rgba(15, 23, 42, 0.04);
+    border-color: #cbd5e1;
+  }
+  .interactive-lift:active {
+    transform: translateY(0) scale(0.99);
+    box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  }
+
+  .interactive-lift-subtle {
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms ease;
+    will-change: transform, box-shadow;
+  }
+  .interactive-lift-subtle:hover {
+    transform: translateY(-1.5px) scale(1.008);
+    box-shadow: 0 4px 10px -1px rgba(15, 23, 42, 0.06);
+    border-color: #cbd5e1;
+  }
+  .interactive-lift-subtle:active {
+    transform: translateY(0) scale(0.995);
+  }
+
   .btn-tactile {
     @apply transition-all duration-150 active:scale-[0.98] hover:shadow-xs;
   }
   .card-hover {
     @apply transition-all duration-200 hover:border-slate-300 hover:shadow-xs;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .interactive-lift,
+  .interactive-lift-subtle,
+  .btn-tactile,
+  .card-hover {
+    transform: none !important;
   }
 }

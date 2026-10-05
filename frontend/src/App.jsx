@@ -380,7 +380,7 @@ function AppContent({
 
         {/* Collapsible Session ECDH Public Key Inspector */}
         {userKeys && (
-          <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600 shadow-xs hover:border-slate-300 transition-colors">
+          <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-600 shadow-xs hover:border-slate-300 transition-colors interactive-lift-subtle">
             <button
               onClick={() => setShowKeyDetails(!showKeyDetails)}
               className="w-full flex items-center justify-between text-slate-700 font-medium hover:text-slate-900 cursor-pointer"
@@ -412,7 +412,7 @@ function AppContent({
         )}
 
         {/* Subtle Security Status Footer Strip */}
-        <div className="border border-slate-200 bg-white rounded-lg p-3.5 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs hover:border-slate-300 transition-colors">
+        <div className="border border-slate-200 bg-white rounded-lg p-3.5 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs hover:border-slate-300 transition-colors interactive-lift-subtle">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-slate-500 shrink-0" />
             <span className="font-semibold text-slate-800 uppercase tracking-wider text-[10px]">Security Status</span>

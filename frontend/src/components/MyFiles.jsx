@@ -540,7 +540,7 @@ export default function MyFiles({ signer, account, userKeys, onNavigateTab }) {
             return (
               <div
                 key={fileId}
-                className="p-4 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all duration-150 shadow-2xs hover:shadow-xs"
+                className="p-4 bg-slate-50/50 hover:bg-slate-50/90 border border-slate-200 hover:border-slate-300 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xs interactive-lift-subtle"
               >
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div className="p-2 bg-white text-slate-700 rounded-md border border-slate-200 shrink-0 mt-0.5 transition-transform duration-150 hover:scale-105">

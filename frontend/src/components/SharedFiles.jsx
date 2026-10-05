@@ -240,7 +240,7 @@ export default function SharedFiles({ signer, account, userKeys }) {
     return (
       <div
         key={fileId}
-        className="p-4 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg transition-all duration-150 space-y-3 shadow-2xs hover:shadow-xs"
+        className="p-4 bg-slate-50/50 hover:bg-slate-50/90 border border-slate-200 hover:border-slate-300 rounded-lg space-y-3 shadow-2xs interactive-lift-subtle"
       >
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-start gap-3 min-w-0 flex-1">
