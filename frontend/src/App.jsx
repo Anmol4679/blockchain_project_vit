@@ -130,24 +130,24 @@ function AppContent({
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between">
-      {/* Backdrop Overlay */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-slate-900/30 backdrop-blur-[1px] z-40 transition-opacity duration-200"
-          onClick={() => setIsSidebarOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+      {/* Backdrop Overlay with smooth fade-in and fade-out */}
+      <div
+        className={`fixed inset-0 bg-slate-900/25 backdrop-blur-[1.5px] z-40 transition-opacity duration-[260ms] ease-out ${
+          isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setIsSidebarOpen(false)}
+        aria-hidden="true"
+      />
 
       {/* Collapsible Vertical Sidebar */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white border-r border-slate-200 z-50 shadow-lg flex flex-col transform transition-transform duration-200 ease-in-out ${
+        className={`fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white border-r border-slate-200 z-50 shadow-lg flex flex-col transform transition-transform duration-[260ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Navigation Sidebar"
       >
         {/* Sidebar Header */}
-        <div className="h-16 px-5 border-b border-slate-200 flex items-center justify-between">
+        <div className="h-16 px-5 border-b border-slate-200 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 bg-slate-900 text-white rounded transition-transform duration-150 hover:scale-105">
               <HardDrive className="w-4 h-4" />
@@ -156,7 +156,7 @@ function AppContent({
           </div>
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-all duration-150 active:scale-90"
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-all duration-150 active:scale-90"
             aria-label="Close sidebar"
           >
             <X className="w-5 h-5" />
@@ -165,56 +165,67 @@ function AppContent({
 
         {/* Sidebar Grouped Navigation */}
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.title} className="space-y-1">
-              <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                {group.title}
-              </div>
-              {group.items.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setIsSidebarOpen(false);
-                    }}
-                    className={`w-full group flex items-center justify-between px-3 py-2.5 rounded-md text-left transition-all duration-150 relative cursor-pointer active:scale-[0.98] ${
-                      isActive
-                        ? 'bg-slate-100 text-slate-900 font-semibold shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                    }`}
-                  >
-                    {/* Subtle left accent line for active item */}
-                    {isActive && (
-                      <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-slate-900 rounded-r transition-all duration-150" />
-                    )}
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className="p-0.5 text-slate-500 group-hover:text-slate-900 transition-colors shrink-0 mt-0.5">
-                        <Icon className={`w-4 h-4 transition-transform duration-150 group-hover:scale-110 ${isActive ? 'text-slate-900' : 'text-slate-500'}`} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-semibold leading-snug">
-                          {tab.label}
+          {NAV_GROUPS.map((group, groupIdx) => {
+            let runningIdx = groupIdx * 3;
+            return (
+              <div key={group.title} className="space-y-1">
+                <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  {group.title}
+                </div>
+                {group.items.map((tab, itemIdx) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  const itemIndex = runningIdx + itemIdx;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        setIsSidebarOpen(false);
+                      }}
+                      style={{
+                        transitionDelay: isSidebarOpen ? `${itemIndex * 25 + 30}ms` : '0ms',
+                      }}
+                      className={`w-full group flex items-center justify-between px-3 py-2.5 rounded-md text-left transition-all duration-150 relative cursor-pointer active:scale-[0.98] ${
+                        isSidebarOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+                      } ${
+                        isActive
+                          ? 'bg-slate-100/90 text-slate-900 font-semibold shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                      }`}
+                    >
+                      {/* Left accent indicator for active item */}
+                      {isActive && (
+                        <div className="absolute left-0 top-2 bottom-2 w-[3px] bg-slate-900 rounded-r" />
+                      )}
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className={`p-0.5 transition-all duration-150 shrink-0 mt-0.5 group-hover:translate-x-0.5 ${
+                          isActive ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-700'
+                        }`}>
+                          <Icon className="w-4 h-4" />
                         </div>
-                        <p className="text-[11px] text-slate-500 leading-tight mt-0.5 font-normal">
-                          {tab.desc}
-                        </p>
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-xs leading-snug ${isActive ? 'font-semibold text-slate-900' : 'font-medium text-slate-700'}`}>
+                            {tab.label}
+                          </div>
+                          <p className="text-[11px] text-slate-400 group-hover:text-slate-500 leading-tight mt-0.5 font-normal">
+                            {tab.desc}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-all duration-150 shrink-0 ml-1.5 ${
-                      isActive ? 'opacity-100 translate-x-0 text-slate-800' : 'opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0'
-                    }`} />
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+                      <ChevronRight className={`w-3.5 h-3.5 transition-all duration-150 shrink-0 ml-1.5 ${
+                        isActive ? 'opacity-100 translate-x-0 text-slate-800' : 'opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 text-slate-400'
+                      }`} />
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
 
         {/* Sidebar Footer Info */}
-        <div className="p-4 border-t border-slate-200 text-xs text-slate-600 bg-white flex items-center justify-between">
+        <div className="p-4 border-t border-slate-200 text-xs text-slate-600 bg-white flex items-center justify-between shrink-0">
           <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Status</span>
           <div className="flex items-center gap-1.5 font-medium text-slate-700">
             <span className={`w-2 h-2 rounded-full transition-colors duration-200 ${account ? 'bg-emerald-500' : 'bg-slate-300'}`} />

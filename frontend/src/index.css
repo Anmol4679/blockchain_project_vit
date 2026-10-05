@@ -13,14 +13,25 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Refined, unobtrusive custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
   button,
   [role="button"] {
     @apply transition-all duration-150 select-none;
-  }
-
-  button:active,
-  [role="button"]:active {
-    transform: scale(0.98);
   }
 
   input[type="text"],
@@ -42,7 +53,7 @@
 
 @layer utilities {
   .btn-tactile {
-    @apply transition-all duration-150 active:scale-95 hover:shadow-xs;
+    @apply transition-all duration-150 active:scale-[0.98] hover:shadow-xs;
   }
   .card-hover {
     @apply transition-all duration-200 hover:border-slate-300 hover:shadow-xs;
