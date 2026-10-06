@@ -32,19 +32,22 @@ export async function getConnectedUserRole(provider, address) {
       const accessControl = getAccessControlContract(activeProvider);
 
       // Fetch role identifiers from contract
-      const [doctorRole, staffRole, patientRole] = await Promise.all([
+      const [adminRole, doctorRole, staffRole, patientRole] = await Promise.all([
+        accessControl.DEFAULT_ADMIN_ROLE(),
         accessControl.DOCTOR_ROLE(),
         accessControl.MEDICAL_STAFF_ROLE(),
         accessControl.PATIENT_ROLE(),
       ]);
 
-      // Query healthcare role ownership dynamically without caching
-      const [isDoctor, isStaff, isPatient] = await Promise.all([
+      // Query healthcare and admin role ownership dynamically without caching
+      const [isAdmin, isDoctor, isStaff, isPatient] = await Promise.all([
+        accessControl.hasRole(adminRole, address),
         accessControl.hasRole(doctorRole, address),
         accessControl.hasRole(staffRole, address),
         accessControl.hasRole(patientRole, address),
       ]);
 
+      if (isAdmin) return "admin";
       if (isDoctor) return "doctor";
       if (isStaff) return "medicalStaff";
       if (isPatient) return "patient";
@@ -55,7 +58,7 @@ export async function getConnectedUserRole(provider, address) {
 
   // Fallback to locally selected role for immediate testing
   const overrideRole = localStorage.getItem(`blockdrive_role_override_${cleanAddress}`);
-  if (overrideRole && ["doctor", "medicalStaff", "patient"].includes(overrideRole)) {
+  if (overrideRole && ["doctor", "medicalStaff", "patient", "admin"].includes(overrideRole)) {
     return overrideRole;
   }
 

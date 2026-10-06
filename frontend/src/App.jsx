@@ -18,7 +18,9 @@ import {
   Award,
   ChevronRight,
   Copy,
-  Check
+  Check,
+  Users,
+  ShieldAlert
 } from 'lucide-react';
 import { supabase } from './utils/supabaseClient';
 import WalletConnect from './components/WalletConnect';
@@ -27,6 +29,9 @@ import MyFiles from './components/MyFiles';
 import SharedFiles from './components/SharedFiles';
 import RequestAccessDecrypt from './components/RequestAccessDecrypt';
 import AuthModal from './components/AuthModal';
+import RoleSelection from './components/RoleSelection';
+import RoleLogin from './components/RoleLogin';
+import RoleManagement from './components/admin/RoleManagement';
 import { CertificateVerifier, CertificateIssuer } from './features/certificate-verification';
 import { RoleProvider, useRole } from './context/RoleContext';
 import { isLocalNodeAlive } from './utils/contracts';
@@ -51,7 +56,9 @@ function AppContent({
   showKeyDetails,
   setShowKeyDetails,
   activeTab,
-  setActiveTab
+  setActiveTab,
+  currentRole,
+  onOpenRolePortal
 }) {
   const { role } = useRole();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -119,6 +126,17 @@ function AppContent({
           label: 'Issue Certificate',
           desc: 'Create a digital certificate',
           icon: Award,
+        },
+      ],
+    },
+    {
+      title: 'ADMINISTRATION',
+      items: [
+        {
+          id: 'admin',
+          label: 'Role Management',
+          desc: 'Onboard & revoke roles',
+          icon: ShieldAlert,
         },
       ],
     },
@@ -224,12 +242,25 @@ function AppContent({
           })}
         </div>
 
-        {/* Sidebar Footer Info */}
-        <div className="p-4 border-t border-slate-200 text-xs text-slate-600 bg-white flex items-center justify-between shrink-0">
-          <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Status</span>
-          <div className="flex items-center gap-1.5 font-medium text-slate-700">
-            <span className={`w-2 h-2 rounded-full transition-colors duration-200 ${account ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-            <span>{account ? 'Connected' : 'Disconnected'}</span>
+        {/* Sidebar Footer Info & Role Portal Switcher */}
+        <div className="p-4 border-t border-slate-200 text-xs text-slate-600 bg-white flex flex-col gap-3 shrink-0">
+          <button
+            onClick={() => {
+              setIsSidebarOpen(false);
+              onOpenRolePortal();
+            }}
+            className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-md text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+          >
+            <Users className="w-3.5 h-3.5 text-slate-600" />
+            <span>Switch Role Portal</span>
+          </button>
+
+          <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+            <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Status</span>
+            <div className="flex items-center gap-1.5 font-medium text-slate-700">
+              <span className={`w-2 h-2 rounded-full transition-colors duration-200 ${account ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              <span>{account ? 'Connected' : 'Disconnected'}</span>
+            </div>
           </div>
         </div>
       </aside>
@@ -242,7 +273,7 @@ function AppContent({
             <button
               onClick={() => setIsSidebarOpen(true)}
               aria-label="Open navigation sidebar"
-              className="p-2 -ml-2 mr-1 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all duration-150 active:scale-95 flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              className="p-2 -ml-2 mr-1 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all duration-150 active:scale-95 flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-slate-300 cursor-pointer"
             >
               <Menu className="w-5 h-5 transition-transform duration-150 hover:rotate-6" />
               <span className="text-xs font-medium text-slate-600 hidden md:inline">Menu</span>
@@ -262,7 +293,18 @@ function AppContent({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Role Portal Switcher Button */}
+            <button
+              onClick={onOpenRolePortal}
+              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 hover:border-slate-300 rounded-md text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs interactive-lift-subtle cursor-pointer"
+              title="Switch Role Selection"
+            >
+              <Users className="w-3.5 h-3.5 text-slate-600" />
+              <span className="hidden sm:inline">Role:</span>
+              <span className="capitalize font-bold text-slate-900">{role || currentRole || 'Doctor'}</span>
+            </button>
+
             {/* Supabase User Auth State */}
             {authUser ? (
               <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-700">
@@ -271,7 +313,7 @@ function AppContent({
                 <button
                   onClick={handleSignOut}
                   title="Sign Out"
-                  className="text-slate-400 hover:text-slate-700 transition-colors p-0.5 active:scale-90"
+                  className="text-slate-400 hover:text-slate-700 transition-colors p-0.5 active:scale-90 cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
@@ -283,7 +325,7 @@ function AppContent({
                     setAuthModalView('signIn');
                     setIsAuthModalOpen(true);
                   }}
-                  className="px-3 py-1.5 bg-white hover:bg-slate-50 hover:border-slate-300 active:scale-95 border border-slate-200 text-slate-700 rounded text-xs font-medium transition-all duration-150"
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 hover:border-slate-300 active:scale-95 border border-slate-200 text-slate-700 rounded text-xs font-medium transition-all duration-150 cursor-pointer shadow-2xs"
                 >
                   Sign In
                 </button>
@@ -292,7 +334,7 @@ function AppContent({
                     setAuthModalView('signUp');
                     setIsAuthModalOpen(true);
                   }}
-                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded text-xs font-medium transition-all duration-150"
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded text-xs font-medium transition-all duration-150 cursor-pointer shadow-2xs"
                 >
                   Register
                 </button>
@@ -376,6 +418,9 @@ function AppContent({
               onConnectWallet={connectLocalTestWallet}
             />
           )}
+          {activeTab === 'admin' && (
+            <RoleManagement signer={signer} account={account} />
+          )}
         </div>
 
         {/* Collapsible Session ECDH Public Key Inspector */}
@@ -451,15 +496,32 @@ export default function App() {
   const [userKeys, setUserKeys] = useState(null);
   const [showKeyDetails, setShowKeyDetails] = useState(false);
 
+  // Determine initial view and role
+  const getInitialView = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewParam = urlParams.get('view');
+    if (viewParam && ['roleSelection', 'roleLogin', 'dashboard'].includes(viewParam)) {
+      return viewParam;
+    }
+    const tabParam = urlParams.get('tab');
+    if (tabParam) return 'dashboard';
+    return 'roleSelection';
+  };
+
+  const [currentView, setCurrentView] = useState(getInitialView);
+  const [selectedRole, setSelectedRole] = useState(() => {
+    return localStorage.getItem('blockdrive_active_role') || 'doctor';
+  });
+
   // Support deep links like ?tab=verify or ?tab=issue or #verify
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam && ['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue'].includes(tabParam)) {
+    if (tabParam && ['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue', 'admin'].includes(tabParam)) {
       return tabParam;
     }
     const hash = window.location.hash.replace('#', '');
-    if (['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue'].includes(hash)) {
+    if (['upload', 'myfiles', 'shared', 'decrypt', 'verify', 'issue', 'admin'].includes(hash)) {
       return hash;
     }
     return 'upload';
@@ -691,30 +753,80 @@ export default function App() {
     }
   }, []);
 
+  const handleRoleSelect = (roleId) => {
+    setSelectedRole(roleId);
+  };
+
+  const handleRoleContinue = (roleId) => {
+    setSelectedRole(roleId);
+    setCurrentView('roleLogin');
+  };
+
+  const handleEnterDashboard = (chosenRole) => {
+    const cleanAccount = account ? account.toLowerCase() : 'default_session';
+    localStorage.setItem(`blockdrive_role_override_${cleanAccount}`, chosenRole);
+    localStorage.setItem('blockdrive_active_role', chosenRole);
+    setSelectedRole(chosenRole);
+
+    if (chosenRole === 'patient') {
+      setActiveTab('shared');
+    } else if (chosenRole === 'admin') {
+      setActiveTab('admin');
+    } else {
+      setActiveTab('upload');
+    }
+
+    setCurrentView('dashboard');
+  };
+
   return (
     <RoleProvider provider={provider} account={account}>
-      <AppContent
-        signer={signer}
-        account={account}
-        isConnecting={isConnecting}
-        error={error}
-        chainId={chainId}
-        switchToLocalhostNetwork={switchToLocalhostNetwork}
-        connectWallet={connectWallet}
-        connectLocalTestWallet={connectLocalTestWallet}
-        authUser={authUser}
-        isAuthModalOpen={isAuthModalOpen}
-        setIsAuthModalOpen={setIsAuthModalOpen}
-        authModalView={authModalView}
-        setAuthModalView={setAuthModalView}
-        handleSignOut={handleSignOut}
-        setAuthUser={setAuthUser}
-        userKeys={userKeys}
-        showKeyDetails={showKeyDetails}
-        setShowKeyDetails={setShowKeyDetails}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
+      {currentView === 'roleSelection' && (
+        <RoleSelection
+          selectedRole={selectedRole}
+          onSelectRole={handleRoleSelect}
+          onContinue={handleRoleContinue}
+        />
+      )}
+
+      {currentView === 'roleLogin' && (
+        <RoleLogin
+          role={selectedRole}
+          account={account}
+          onBackToRoles={() => setCurrentView('roleSelection')}
+          onLoginSuccess={(user) => setAuthUser(user)}
+          onConnectWallet={connectWallet}
+          isConnectingWallet={isConnecting}
+          onEnterDashboard={handleEnterDashboard}
+        />
+      )}
+
+      {currentView === 'dashboard' && (
+        <AppContent
+          signer={signer}
+          account={account}
+          isConnecting={isConnecting}
+          error={error}
+          chainId={chainId}
+          switchToLocalhostNetwork={switchToLocalhostNetwork}
+          connectWallet={connectWallet}
+          connectLocalTestWallet={connectLocalTestWallet}
+          authUser={authUser}
+          isAuthModalOpen={isAuthModalOpen}
+          setIsAuthModalOpen={setIsAuthModalOpen}
+          authModalView={authModalView}
+          setAuthModalView={setAuthModalView}
+          handleSignOut={handleSignOut}
+          setAuthUser={setAuthUser}
+          userKeys={userKeys}
+          showKeyDetails={showKeyDetails}
+          setShowKeyDetails={setShowKeyDetails}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          currentRole={selectedRole}
+          onOpenRolePortal={() => setCurrentView('roleSelection')}
+        />
+      )}
     </RoleProvider>
   );
 }
