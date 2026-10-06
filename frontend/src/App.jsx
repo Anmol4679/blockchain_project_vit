@@ -82,68 +82,93 @@ function AppContent({
     setTimeout(() => setCopiedJWK(false), 2000);
   };
 
-  const NAV_GROUPS = [
+  const activeRole = currentRole || role || 'doctor';
+
+  const ALL_NAV_GROUPS = [
     {
       title: 'WORKSPACE',
+      roles: ['doctor', 'medicalStaff', 'patient'],
       items: [
         {
           id: 'upload',
           label: 'Upload & Encrypt',
           desc: 'Securely upload records',
           icon: Upload,
+          roles: ['doctor', 'medicalStaff'],
         },
         {
           id: 'myfiles',
           label: 'My Files & Access',
           desc: 'Manage your documents',
           icon: FileText,
+          roles: ['doctor', 'medicalStaff'],
         },
         {
           id: 'shared',
           label: 'Shared With Me',
           desc: 'Records shared with you',
           icon: Share2,
+          roles: ['doctor', 'medicalStaff', 'patient'],
         },
       ],
     },
     {
       title: 'SECURITY',
+      roles: ['doctor', 'medicalStaff', 'patient', 'admin'],
       items: [
         {
           id: 'decrypt',
           label: 'Manual Decrypt',
           desc: 'Decrypt a document',
           icon: Key,
+          roles: ['doctor', 'medicalStaff', 'patient'],
         },
         {
           id: 'verify',
           label: 'Verify Document',
           desc: 'Validate document integrity',
           icon: CheckCircle2,
+          roles: ['doctor', 'medicalStaff', 'patient', 'admin'],
         },
         {
           id: 'issue',
           label: 'Issue Certificate',
           desc: 'Create a digital certificate',
           icon: Award,
+          roles: ['doctor'],
         },
       ],
     },
     {
       title: 'ADMINISTRATION',
+      roles: ['admin'],
       items: [
         {
           id: 'admin',
           label: 'Role Management',
           desc: 'Onboard & revoke roles',
           icon: ShieldAlert,
+          roles: ['admin'],
         },
       ],
     },
   ];
 
+  // Filter groups and items specifically for the active role
+  const NAV_GROUPS = ALL_NAV_GROUPS
+    .filter((g) => !g.roles || g.roles.includes(activeRole))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((item) => !item.roles || item.roles.includes(activeRole)),
+    }))
+    .filter((g) => g.items.length > 0);
+
   const allTabs = NAV_GROUPS.flatMap((g) => g.items);
-  const currentActiveTab = allTabs.find((t) => t.id === activeTab) || allTabs[0];
+  const currentActiveTab = allTabs.find((t) => t.id === activeTab) || allTabs[0] || {
+    id: activeTab,
+    label: activeTab,
+    icon: HardDrive
+  };
   const CurrentIcon = currentActiveTab.icon;
 
   return (

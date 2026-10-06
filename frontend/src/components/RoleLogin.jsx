@@ -106,38 +106,55 @@ export default function RoleLogin({
         });
         if (error) throw error;
 
-        // Strict Admin Role Verification
-        if (role === 'admin') {
-          let userRole = data.user?.user_metadata?.role;
-          
-          try {
-            const { data: profile, error: profileErr } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', data.user.id)
-              .maybeSingle();
+        // Strict Role Verification for ALL roles (doctor, patient, medicalStaff, admin)
+        let userRole = data.user?.user_metadata?.role;
 
-            if (profile && profile.role) {
-              userRole = profile.role;
-            }
-          } catch (profileLookupErr) {
-            console.warn('Profile table check failed:', profileLookupErr);
-          }
+        try {
+          const { data: profile, error: profileErr } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', data.user.id)
+            .maybeSingle();
 
-          if (userRole !== 'admin') {
-            await supabase.auth.signOut();
-            throw new Error(`Access Denied: ${trimmedEmail} is not registered as an Administrator. Only authorized Admin accounts can access this portal.`);
+          if (profile && profile.role) {
+            userRole = profile.role;
           }
+        } catch (profileLookupErr) {
+          console.warn('Profile table check failed:', profileLookupErr);
         }
 
-        setMessage({ text: '✓ Authenticated successfully as Administrator.', type: 'success' });
+        if (!userRole) {
+          userRole = 'patient';
+        }
+
+        if (userRole !== role) {
+          await supabase.auth.signOut();
+          const formatRole = (r) => {
+            if (r === 'doctor') return 'Doctor';
+            if (r === 'medicalStaff') return 'Medical Staff';
+            if (r === 'patient') return 'Patient';
+            if (r === 'admin') return 'Administrator';
+            return r;
+          };
+          throw new Error(`Access Denied: This account (${trimmedEmail}) is registered as a ${formatRole(userRole)}. Please switch to the ${formatRole(userRole)} Login Portal.`);
+        }
+
+        const formatRole = (r) => {
+          if (r === 'doctor') return 'Doctor';
+          if (r === 'medicalStaff') return 'Medical Staff';
+          if (r === 'patient') return 'Patient';
+          if (r === 'admin') return 'Administrator';
+          return r;
+        };
+
+        setMessage({ text: `✓ Authenticated successfully as ${formatRole(role)}.`, type: 'success' });
         setTimeout(() => {
           if (onLoginSuccess) onLoginSuccess(data.user);
           if (onEnterDashboard) onEnterDashboard(role);
         }, 500);
       } else {
-        if (role === 'admin') {
-          throw new Error('Self-registration is disabled for Admin roles. Administrator accounts must be manually provisioned in Supabase.');
+        if (role !== 'patient') {
+          throw new Error(`Self-registration is only permitted for Patients. ${role === 'doctor' ? 'Doctor' : role === 'medicalStaff' ? 'Medical Staff' : 'Admin'} accounts must be provisioned by the Administrator.`);
         }
 
         if (password !== confirmPassword) {
@@ -148,13 +165,13 @@ export default function RoleLogin({
           password,
           options: {
             data: {
-              role: role,
+              role: 'patient',
               full_name: trimmedEmail.split('@')[0]
             }
           }
         });
         if (error) throw error;
-        setMessage({ text: '✓ Account registered! You may now sign in with your credentials.', type: 'success' });
+        setMessage({ text: '✓ Patient account registered! You may now sign in with your credentials.', type: 'success' });
         setEmailMode('signIn');
       }
     } catch (err) {
@@ -391,10 +408,10 @@ export default function RoleLogin({
                 )}
               </button>
 
-              {role === 'admin' ? (
+              {role !== 'patient' ? (
                 <div className="text-center pt-2">
                   <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-md p-2">
-                    🔒 Admin accounts are manually provisioned in Supabase. Unauthorized accounts will be rejected.
+                    🔒 {role === 'doctor' ? 'Doctor' : role === 'medicalStaff' ? 'Medical Staff' : 'Administrator'} accounts are provisioned by the Hospital Admin. Please use the credentials provided to you.
                   </p>
                 </div>
               ) : (
@@ -404,7 +421,7 @@ export default function RoleLogin({
                     onClick={() => setEmailMode(emailMode === 'signIn' ? 'signUp' : 'signIn')}
                     className="text-xs text-slate-500 hover:text-slate-900 underline cursor-pointer"
                   >
-                    {emailMode === 'signIn' ? "Don't have an account? Register" : "Already have an account? Sign In"}
+                    {emailMode === 'signIn' ? "Don't have a patient account? Register" : "Already have an account? Sign In"}
                   </button>
                 </div>
               )}
