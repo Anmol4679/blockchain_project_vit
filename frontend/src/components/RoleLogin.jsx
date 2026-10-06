@@ -87,7 +87,8 @@ export default function RoleLogin({
     e.preventDefault();
     setMessage({ text: '', type: '' });
 
-    if (!email.trim()) {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
       setMessage({ text: 'Please provide a valid email address.', type: 'error' });
       return;
     }
@@ -100,25 +101,60 @@ export default function RoleLogin({
     try {
       if (emailMode === 'signIn') {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: trimmedEmail,
           password
         });
         if (error) throw error;
-        setMessage({ text: '✓ Authenticated successfully.', type: 'success' });
+
+        // Strict Admin Role Verification
+        if (role === 'admin') {
+          let userRole = data.user?.user_metadata?.role;
+          
+          try {
+            const { data: profile, error: profileErr } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', data.user.id)
+              .maybeSingle();
+
+            if (profile && profile.role) {
+              userRole = profile.role;
+            }
+          } catch (profileLookupErr) {
+            console.warn('Profile table check failed:', profileLookupErr);
+          }
+
+          if (userRole !== 'admin') {
+            await supabase.auth.signOut();
+            throw new Error(`Access Denied: ${trimmedEmail} is not registered as an Administrator. Only authorized Admin accounts can access this portal.`);
+          }
+        }
+
+        setMessage({ text: '✓ Authenticated successfully as Administrator.', type: 'success' });
         setTimeout(() => {
           if (onLoginSuccess) onLoginSuccess(data.user);
           if (onEnterDashboard) onEnterDashboard(role);
         }, 500);
       } else {
+        if (role === 'admin') {
+          throw new Error('Self-registration is disabled for Admin roles. Administrator accounts must be manually provisioned in Supabase.');
+        }
+
         if (password !== confirmPassword) {
           throw new Error('Passwords do not match.');
         }
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password
+          email: trimmedEmail,
+          password,
+          options: {
+            data: {
+              role: role,
+              full_name: trimmedEmail.split('@')[0]
+            }
+          }
         });
         if (error) throw error;
-        setMessage({ text: '✓ Account registered! You may now sign in.', type: 'success' });
+        setMessage({ text: '✓ Account registered! You may now sign in with your credentials.', type: 'success' });
         setEmailMode('signIn');
       }
     } catch (err) {
@@ -355,15 +391,23 @@ export default function RoleLogin({
                 )}
               </button>
 
-              <div className="text-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEmailMode(emailMode === 'signIn' ? 'signUp' : 'signIn')}
-                  className="text-xs text-slate-500 hover:text-slate-900 underline cursor-pointer"
-                >
-                  {emailMode === 'signIn' ? "Don't have an account? Register" : "Already have an account? Sign In"}
-                </button>
-              </div>
+              {role === 'admin' ? (
+                <div className="text-center pt-2">
+                  <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-md p-2">
+                    🔒 Admin accounts are manually provisioned in Supabase. Unauthorized accounts will be rejected.
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEmailMode(emailMode === 'signIn' ? 'signUp' : 'signIn')}
+                    className="text-xs text-slate-500 hover:text-slate-900 underline cursor-pointer"
+                  >
+                    {emailMode === 'signIn' ? "Don't have an account? Register" : "Already have an account? Sign In"}
+                  </button>
+                </div>
+              )}
             </form>
           )}
 
