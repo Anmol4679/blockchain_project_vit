@@ -294,52 +294,23 @@ function AppContent({
           </div>
 
           <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* Role Portal Switcher Button */}
-            <button
-              onClick={onOpenRolePortal}
-              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 hover:border-slate-300 rounded-md text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs interactive-lift-subtle cursor-pointer"
-              title="Switch Role Selection"
-            >
-              <Users className="w-3.5 h-3.5 text-slate-600" />
-              <span className="hidden sm:inline">Role:</span>
-              <span className="capitalize font-bold text-slate-900">{role || currentRole || 'Doctor'}</span>
-            </button>
-
-            {/* Supabase User Auth State */}
-            {authUser ? (
-              <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-700">
+            {/* Supabase User Email Indicator */}
+            {authUser && (
+              <div className="hidden sm:flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-md px-2.5 py-1 text-xs text-slate-700">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span className="font-medium max-w-[130px] truncate">{authUser.email}</span>
-                <button
-                  onClick={handleSignOut}
-                  title="Sign Out"
-                  className="text-slate-400 hover:text-slate-700 transition-colors p-0.5 active:scale-90 cursor-pointer"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setAuthModalView('signIn');
-                    setIsAuthModalOpen(true);
-                  }}
-                  className="px-3 py-1.5 bg-white hover:bg-slate-50 hover:border-slate-300 active:scale-95 border border-slate-200 text-slate-700 rounded text-xs font-medium transition-all duration-150 cursor-pointer shadow-2xs"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => {
-                    setAuthModalView('signUp');
-                    setIsAuthModalOpen(true);
-                  }}
-                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded text-xs font-medium transition-all duration-150 cursor-pointer shadow-2xs"
-                >
-                  Register
-                </button>
+                <span className="font-medium max-w-[160px] truncate">{authUser.email}</span>
               </div>
             )}
+
+            {/* Clean Log Out Button */}
+            <button
+              onClick={handleSignOut}
+              className="px-3 py-1.5 bg-white hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 border border-slate-200 text-slate-700 rounded-md text-xs font-semibold transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              title="Log out and return to choose role page"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Log Out</span>
+            </button>
           </div>
         </div>
       </header>
@@ -549,8 +520,14 @@ export default function App() {
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.warn('Sign out note:', e);
+    }
     setAuthUser(null);
+    setSelectedRole('patient');
+    setCurrentView('roleSelection');
   };
 
   // Initialize client-side ECDH keypair per connected account for reliable key agreement
