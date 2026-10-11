@@ -314,6 +314,7 @@ function AppContent({
               userKeys={userKeys}
               onConnectWallet={connectLocalTestWallet}
               onFileUploaded={() => setActiveTab('myfiles')}
+              currentRole={activeRole}
             />
           )}
           {activeTab === 'myfiles' && (
@@ -322,6 +323,7 @@ function AppContent({
               account={account}
               userKeys={userKeys}
               onNavigateTab={setActiveTab}
+              currentRole={activeRole}
             />
           )}
           {activeTab === 'shared' && (
@@ -338,6 +340,7 @@ function AppContent({
               signer={signer}
               account={account}
               onConnectWallet={connectLocalTestWallet}
+              currentRole={activeRole}
             />
           )}
           {activeTab === 'admin' && (
@@ -677,7 +680,7 @@ export default function App() {
   };
 
   return (
-    <RoleProvider provider={provider} account={account}>
+    <RoleProvider provider={provider} account={account} activeRole={selectedRole}>
       {currentView === 'roleSelection' && (
         <RoleSelection
           selectedRole={selectedRole}

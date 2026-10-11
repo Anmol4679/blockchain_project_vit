@@ -9,12 +9,18 @@ const RoleContext = createContext({
   refreshRole: async () => {},
 });
 
-export function RoleProvider({ children, provider: propProvider, account: propAccount }) {
-  const [role, setRole] = useState("unregistered");
+export function RoleProvider({ children, provider: propProvider, account: propAccount, activeRole }) {
+  const [role, setRole] = useState(() => activeRole || localStorage.getItem('blockdrive_active_role') || "doctor");
   const [loading, setLoading] = useState(false);
   const [internalAccount, setInternalAccount] = useState("");
 
   const activeAccount = propAccount !== undefined ? propAccount : internalAccount;
+
+  useEffect(() => {
+    if (activeRole) {
+      setRole(activeRole);
+    }
+  }, [activeRole]);
 
   // Listen for accountsChanged event if propAccount is not explicitly passed
   useEffect(() => {
@@ -43,7 +49,7 @@ export function RoleProvider({ children, provider: propProvider, account: propAc
 
   const refreshRole = useCallback(async () => {
     if (!activeAccount) {
-      setRole("unregistered");
+      setRole(activeRole || localStorage.getItem('blockdrive_active_role') || "doctor");
       setLoading(false);
       return;
     }
@@ -60,14 +66,21 @@ export function RoleProvider({ children, provider: propProvider, account: propAc
         }
       }
       const userRole = await getConnectedUserRole(activeProvider, activeAccount);
-      setRole(userRole);
+      if (userRole && userRole !== "unregistered") {
+        setRole(userRole);
+      } else if (activeRole) {
+        setRole(activeRole);
+      } else {
+        const stored = localStorage.getItem('blockdrive_active_role');
+        setRole(stored || "doctor");
+      }
     } catch (err) {
       console.error("Failed to refresh role:", err);
-      setRole("unregistered");
+      setRole(activeRole || localStorage.getItem('blockdrive_active_role') || "doctor");
     } finally {
       setLoading(false);
     }
-  }, [propProvider, activeAccount]);
+  }, [propProvider, activeAccount, activeRole]);
 
   useEffect(() => {
     refreshRole();

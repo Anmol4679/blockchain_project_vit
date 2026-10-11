@@ -6,8 +6,9 @@ import { getFileRegistryContract } from '../utils/contracts';
 import { useRole } from '../context/RoleContext';
 import { supabase } from '../utils/supabaseClient';
 
-export default function UploadFile({ signer, userKeys, onFileUploaded, onConnectWallet, account }) {
-  const { role, loading: roleLoading } = useRole();
+export default function UploadFile({ signer, userKeys, onFileUploaded, onConnectWallet, account, currentRole }) {
+  const { role: contextRole, loading: roleLoading } = useRole();
+  const role = currentRole || (contextRole !== 'unregistered' ? contextRole : '') || 'doctor';
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);

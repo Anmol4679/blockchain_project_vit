@@ -4,8 +4,9 @@ import { getCertificateRegistryContract, computeDocumentHash } from './certifica
 import { isLocalNodeAlive } from '../../utils/contracts';
 import { useRole } from '../../context/RoleContext';
 
-export default function CertificateIssuer({ signer, account, onConnectWallet }) {
-  const { role, loading: roleLoading } = useRole();
+export default function CertificateIssuer({ signer, account, onConnectWallet, currentRole }) {
+  const { role: contextRole, loading: roleLoading } = useRole();
+  const role = currentRole || (contextRole !== 'unregistered' ? contextRole : '') || 'doctor';
   const [file, setFile] = useState(null);
   const [documentHash, setDocumentHash] = useState('');
   const [recipientName, setRecipientName] = useState('');

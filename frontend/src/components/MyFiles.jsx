@@ -13,8 +13,9 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-export default function MyFiles({ signer, account, userKeys, onNavigateTab }) {
-  const { role, loading: roleLoading } = useRole();
+export default function MyFiles({ signer, account, userKeys, onNavigateTab, currentRole }) {
+  const { role: contextRole, loading: roleLoading } = useRole();
+  const role = currentRole || (contextRole !== 'unregistered' ? contextRole : '') || 'doctor';
   const [files, setFiles] = useState([]);
   const [fileDetails, setFileDetails] = useState({});
   const [loading, setLoading] = useState(false);
