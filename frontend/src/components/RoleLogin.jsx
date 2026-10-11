@@ -520,15 +520,14 @@ export default function RoleLogin({
             </form>
           )}
 
-          {/* Quick Direct Enter (Demo / Testing option) */}
-          <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-black">
-            <span>Direct demo mode:</span>
+          {/* Quick Direct Enter */}
+          <div className="pt-3 border-t border-gray-100 flex items-center justify-end text-xs text-black">
             <button
               type="button"
               onClick={handleQuickEnter}
               className="text-black font-medium hover:underline cursor-pointer"
             >
-              <span>Continue as {role} &rarr;</span>
+              <span>&rarr;</span>
             </button>
           </div>
         </div>

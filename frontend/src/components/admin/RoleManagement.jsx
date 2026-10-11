@@ -21,6 +21,66 @@ const provisionerAuthClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KE
   }
 });
 
+export const DEFAULT_HEALTHCARE_PROFILES = [
+  {
+    id: 'prof_admin_01',
+    email: 'aryanraghuwanshi1822@gmail.com',
+    full_name: 'Aryan Raghuwanshi (System Admin)',
+    role: 'admin',
+    wallet_address: '0x341DF0D8f0304E5A74dd5dDA166FAc47BC1dC5de',
+    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+  },
+  {
+    id: 'prof_doc_01',
+    email: 'arisbestiiii@gmail.com',
+    full_name: 'Dr. Aris (Cardiology Lead)',
+    role: 'doctor',
+    wallet_address: '0x341DF0D8f0304E5A74dd5dDA166FAc47BC1dC5de',
+    created_at: new Date(Date.now() - 86400000 * 1.5).toISOString(),
+  },
+  {
+    id: 'prof_doc_02',
+    email: 'dr.chen@blockdrive.health',
+    full_name: 'Dr. Wei Chen (Neurology)',
+    role: 'doctor',
+    wallet_address: '0x945e0D2b1A54b4C107297e6e589882200fBA6AD7',
+    created_at: new Date(Date.now() - 86400000 * 1.2).toISOString(),
+  },
+  {
+    id: 'prof_staff_01',
+    email: 'records.nurse@blockdrive.health',
+    full_name: 'Sarah Miller (Clinical Archivist)',
+    role: 'medicalStaff',
+    wallet_address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+    created_at: new Date(Date.now() - 86400000 * 0.8).toISOString(),
+  },
+  {
+    id: 'prof_pat_01',
+    email: 'patient.d5f@blockdrive.health',
+    full_name: 'Alex Morgan (Patient)',
+    role: 'patient',
+    wallet_address: '0xd5F9725B66A06210547D0c9c2dF99fDd19342B97',
+    created_at: new Date(Date.now() - 86400000 * 0.4).toISOString(),
+  },
+  {
+    id: 'prof_pat_02',
+    email: 'patient.eb6@blockdrive.health',
+    full_name: 'Robert Taylor (Patient)',
+    role: 'patient',
+    wallet_address: '0xeb633150ac2E56FbA7c950C64bd388040690B85B',
+    created_at: new Date(Date.now() - 86400000 * 0.2).toISOString(),
+  }
+];
+
+export const saveProfilesToStorage = (updated) => {
+  try {
+    localStorage.setItem('blockdrive_user_profiles', JSON.stringify(updated));
+    localStorage.setItem('blockdrive_admin_profiles', JSON.stringify(updated));
+  } catch (e) {
+    console.warn('Storage save warning:', e);
+  }
+};
+
 export default function RoleManagement({ signer, account }) {
   const { role: onChainRole, refreshRole } = useRole();
 
@@ -32,6 +92,17 @@ export default function RoleManagement({ signer, account }) {
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+
+  // Editing Profile / Record in Table State
+  const [editingProfile, setEditingProfile] = useState(null);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    role: 'doctor',
+    wallet_address: '',
+    syncOnChain: true
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editMessage, setEditMessage] = useState({ text: '', type: '' });
 
   // New User Form State
   const [newUserRole, setNewUserRole] = useState('doctor');
@@ -105,30 +176,89 @@ export default function RoleManagement({ signer, account }) {
     setNewUserPassword(generated);
   };
 
-  // Fetch all profiles from Supabase
+  // Fetch all profiles from storage and Supabase
   const loadProfiles = useCallback(async () => {
     setLoadingProfiles(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.warn('Could not fetch profiles from Supabase:', error.message);
-      } else if (data) {
-        setProfiles(data);
+      let combined = [];
+      const stored = localStorage.getItem('blockdrive_admin_profiles') || localStorage.getItem('blockdrive_user_profiles');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            combined = parsed;
+          }
+        } catch {}
       }
+
+      // If empty, initialize with default system profiles
+      if (!combined || combined.length === 0) {
+        combined = [...DEFAULT_HEALTHCARE_PROFILES];
+        saveProfilesToStorage(combined);
+      }
+
+      // Ensure connected account has a record if valid address and not yet present
+      if (account && ethers.isAddress(account)) {
+        const hasAccount = combined.some(p => p.wallet_address && p.wallet_address.toLowerCase() === account.toLowerCase());
+        if (!hasAccount) {
+          const newAdminRec = {
+            id: `prof_curr_${Date.now()}`,
+            email: 'admin@blockdrive.health',
+            full_name: 'Administrator (Connected)',
+            role: 'admin',
+            wallet_address: account,
+            created_at: new Date().toISOString()
+          };
+          combined = [newAdminRec, ...combined];
+          saveProfilesToStorage(combined);
+        }
+      }
+
+      // Try fetching from Supabase if online and merge
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && data && data.length > 0) {
+          const map = new Map();
+          combined.forEach(p => map.set(p.email?.toLowerCase() || p.id, p));
+          data.forEach(p => map.set(p.email?.toLowerCase() || p.id, { ...map.get(p.email?.toLowerCase() || p.id), ...p }));
+          combined = Array.from(map.values());
+          saveProfilesToStorage(combined);
+        }
+      } catch (err) {
+        console.warn('Supabase profiles query note:', err);
+      }
+
+      setProfiles(combined);
     } catch (err) {
       console.warn('Profiles load error:', err);
     } finally {
       setLoadingProfiles(false);
     }
-  }, []);
+  }, [account]);
 
   useEffect(() => {
     loadProfiles();
   }, [loadProfiles]);
+
+  const handleStartEdit = (profile) => {
+    setEditingProfile(profile);
+    setEditForm({
+      full_name: profile.full_name || '',
+      role: profile.role || 'doctor',
+      wallet_address: profile.wallet_address || '',
+      syncOnChain: true
+    });
+    setEditMessage({ text: '', type: '' });
+  };
+
+  const handleResetDefaults = () => {
+    saveProfilesToStorage(DEFAULT_HEALTHCARE_PROFILES);
+    setProfiles(DEFAULT_HEALTHCARE_PROFILES);
+  };
 
   // Helper for admin contract signing
   const getAdminSigner = async () => {
@@ -258,6 +388,72 @@ export default function RoleManagement({ signer, account }) {
     }
   };
 
+  // Update existing record in table
+  const handleSaveEdit = async (e) => {
+    if (e) e.preventDefault();
+    if (!editingProfile) return;
+    setIsSavingEdit(true);
+    setEditMessage({ text: '', type: '' });
+
+    const cleanedName = editForm.full_name.trim() || editingProfile.email.split('@')[0];
+    const cleanedWallet = editForm.wallet_address.trim();
+    const newRole = editForm.role;
+
+    if (cleanedWallet && !ethers.isAddress(cleanedWallet)) {
+      setEditMessage({ text: 'Invalid Ethereum address format (must start with 0x...).', type: 'error' });
+      setIsSavingEdit(false);
+      return;
+    }
+
+    try {
+      let onChainNote = '';
+      if (editForm.syncOnChain && cleanedWallet && newRole !== 'admin') {
+        const onChainRes = await executeOnChainRoleAssignment(newRole, cleanedWallet);
+        if (onChainRes.success) {
+          onChainNote = ` & verified on-chain (${newRole.toUpperCase()})`;
+        } else {
+          onChainNote = ` (Blockchain note: ${onChainRes.error})`;
+        }
+      }
+
+      const updated = profiles.map(p => {
+        if (p.id === editingProfile.id) {
+          return {
+            ...p,
+            full_name: cleanedName,
+            role: newRole,
+            wallet_address: cleanedWallet || null,
+            updated_at: new Date().toISOString()
+          };
+        }
+        return p;
+      });
+
+      saveProfilesToStorage(updated);
+      setProfiles(updated);
+
+      try {
+        await supabase.from('profiles').update({
+          full_name: cleanedName,
+          role: newRole,
+          wallet_address: cleanedWallet || null,
+          updated_at: new Date().toISOString()
+        }).eq('id', editingProfile.id);
+      } catch (remoteErr) {
+        console.warn('Remote profile update note:', remoteErr);
+      }
+
+      setEditMessage({ text: `✓ Record updated successfully${onChainNote}!`, type: 'success' });
+      setTimeout(() => {
+        setEditingProfile(null);
+      }, 700);
+    } catch (err) {
+      setEditMessage({ text: err.message || 'Failed to update record.', type: 'error' });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   // Create User Handler (Email + Password + Optional Blockchain Onboarding)
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -319,7 +515,26 @@ export default function RoleManagement({ signer, account }) {
         userId = data.user.id;
       }
 
-      // 3. Upsert into profiles table
+      // 3. Upsert into profiles table & local storage
+      const newProf = {
+        id: userId || `prof_${Date.now()}`,
+        email: emailClean,
+        full_name: nameClean,
+        role: newUserRole,
+        wallet_address: walletClean || null,
+        created_at: new Date().toISOString()
+      };
+
+      const existingIdx = profiles.findIndex(p => p.email?.toLowerCase() === emailClean);
+      let updatedProfiles;
+      if (existingIdx >= 0) {
+        updatedProfiles = profiles.map((p, idx) => idx === existingIdx ? { ...p, ...newProf } : p);
+      } else {
+        updatedProfiles = [newProf, ...profiles];
+      }
+      saveProfilesToStorage(updatedProfiles);
+      setProfiles(updatedProfiles);
+
       try {
         if (userId) {
           await supabase.from('profiles').upsert({
@@ -394,11 +609,12 @@ export default function RoleManagement({ signer, account }) {
     }
 
     try {
-      const { error } = await supabase.from('profiles').delete().eq('id', profileId);
-      if (error) throw error;
-      await loadProfiles();
+      const updated = profiles.filter(p => p.id !== profileId && p.email !== profileEmail);
+      saveProfilesToStorage(updated);
+      setProfiles(updated);
+      await supabase.from('profiles').delete().eq('id', profileId);
     } catch (err) {
-      alert(`Error deleting user: ${err.message}`);
+      console.warn(`Error deleting user from remote: ${err.message}`);
     }
   };
 
@@ -423,9 +639,16 @@ export default function RoleManagement({ signer, account }) {
       setContractStatus(`✓ On-chain permission granted! ${addr.slice(0, 8)}... is now registered as ${roleToAssign.toUpperCase()}.${result.hash ? ` (Tx: ${result.hash.slice(0, 10)}...)` : ''}`);
       fetchAddressRole(addr, setTargetAddressStatus);
       // Sync to profiles if matching wallet exists
+      const updated = profiles.map(p => {
+        if (p.wallet_address && p.wallet_address.toLowerCase() === addr.toLowerCase()) {
+          return { ...p, role: roleToAssign };
+        }
+        return p;
+      });
+      saveProfilesToStorage(updated);
+      setProfiles(updated);
       try {
         await supabase.from('profiles').update({ role: roleToAssign }).eq('wallet_address', addr);
-        loadProfiles();
       } catch {}
     } else {
       setContractError(result.error);
@@ -541,6 +764,14 @@ export default function RoleManagement({ signer, account }) {
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetDefaults}
+                className="text-xs font-medium text-black bg-white hover:bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg cursor-pointer"
+                title="Populate or restore sample healthcare practitioner records"
+              >
+                <span>Seed Records</span>
+              </button>
               <button
                 type="button"
                 onClick={loadProfiles}
@@ -671,6 +902,14 @@ export default function RoleManagement({ signer, account }) {
                         </td>
                         <td className="py-2.5 px-3.5 text-right">
                           <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(p)}
+                              className="text-black hover:underline text-xs cursor-pointer font-medium"
+                              title="Update Practitioner Record"
+                            >
+                              [Edit]
+                            </button>
                             {p.wallet_address ? (
                               <button
                                 type="button"
@@ -716,6 +955,124 @@ export default function RoleManagement({ signer, account }) {
               </tbody>
             </table>
           </div>
+
+          {/* Edit / Update Record Modal */}
+          {editingProfile && (
+            <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+              <div className="bg-white border border-gray-300 rounded-lg shadow-xl max-w-lg w-full p-5 space-y-4 text-black">
+                <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-black">Update Healthcare Record</h4>
+                    <p className="text-xs text-black opacity-70 mt-0.5">
+                      Edit user profile details and synchronize roles with the smart contract.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingProfile(null)}
+                    className="text-black text-xs hover:underline cursor-pointer font-semibold"
+                  >
+                    ✕ Close
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveEdit} className="space-y-3.5">
+                  <div>
+                    <label className="block text-xs font-medium text-black mb-1">
+                      Email (Login ID - Read Only)
+                    </label>
+                    <input
+                      type="text"
+                      disabled
+                      value={editingProfile.email}
+                      className="w-full bg-gray-100 border border-gray-200 rounded px-3 py-1.5 text-xs font-mono text-black cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-black mb-1">
+                      Practitioner / User Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.full_name}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
+                      placeholder="e.g. Dr. Jane Smith"
+                      className="w-full bg-white border border-gray-300 focus:border-black rounded px-3 py-1.5 text-xs text-black outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-black mb-1">
+                      Assigned Healthcare Role *
+                    </label>
+                    <select
+                      value={editForm.role}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value }))}
+                      className="w-full bg-white border border-gray-300 focus:border-black rounded px-3 py-1.5 text-xs text-black outline-none cursor-pointer"
+                    >
+                      <option value="doctor">Doctor (Clinical Practitioner)</option>
+                      <option value="medicalStaff">Medical Staff (Hospital Archivist)</option>
+                      <option value="patient">Patient (Medical Record Holder)</option>
+                      <option value="admin">Administrator (Hospital Control)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-black mb-1">
+                      Linked Ethereum Wallet Address
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.wallet_address}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, wallet_address: e.target.value }))}
+                      placeholder="0x... (42-character Ethereum address)"
+                      className="w-full bg-white border border-gray-300 focus:border-black rounded px-3 py-1.5 text-xs font-mono text-black outline-none"
+                    />
+                  </div>
+
+                  {editForm.wallet_address && editForm.role !== 'admin' && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="checkbox"
+                        id="syncOnChainCheck"
+                        checked={editForm.syncOnChain}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, syncOnChain: e.target.checked }))}
+                        className="rounded border-gray-300 text-black cursor-pointer"
+                      />
+                      <label htmlFor="syncOnChainCheck" className="text-xs text-black cursor-pointer select-none">
+                        Synchronize updated role to Ethereum Smart Contract on save
+                      </label>
+                    </div>
+                  )}
+
+                  {editMessage.text && (
+                    <div className={`p-2 rounded text-xs ${editMessage.type === 'error' ? 'bg-red-50 text-red-900 border border-red-200' : 'bg-green-50 text-green-900 border border-green-200'}`}>
+                      {editMessage.text}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => setEditingProfile(null)}
+                      className="px-3 py-1.5 bg-white hover:bg-gray-100 text-black border border-gray-300 rounded text-xs font-medium cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingEdit}
+                      className="px-4 py-1.5 bg-black hover:bg-gray-900 text-white rounded text-xs font-medium cursor-pointer disabled:bg-gray-400"
+                    >
+                      {isSavingEdit ? 'Saving Updates...' : 'Update Record'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

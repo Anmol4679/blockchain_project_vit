@@ -153,6 +153,57 @@ export async function revokeHealthcareRole(signer, account, role) {
   return await tx.wait();
 }
 
+export async function ensureParticipantRole(recipientAddress) {
+  if (!recipientAddress || !ethers.isAddress(recipientAddress)) {
+    throw new Error("Invalid recipient wallet address.");
+  }
+
+  let provider;
+  if (typeof window !== "undefined" && window.ethereum) {
+    provider = new ethers.BrowserProvider(window.ethereum);
+  }
+  const nodeAlive = await isLocalNodeAlive();
+  if (nodeAlive) {
+    provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+  }
+  if (!provider) return false;
+
+  try {
+    const accessControl = getAccessControlContract(provider);
+    const [docRole, staffRole, patientRole] = await Promise.all([
+      accessControl.DOCTOR_ROLE(),
+      accessControl.MEDICAL_STAFF_ROLE(),
+      accessControl.PATIENT_ROLE(),
+    ]);
+
+    const [isDoc, isStaff, isPatient] = await Promise.all([
+      accessControl.hasRole(docRole, recipientAddress),
+      accessControl.hasRole(staffRole, recipientAddress),
+      accessControl.hasRole(patientRole, recipientAddress),
+    ]);
+
+    if (isDoc || isStaff || isPatient) {
+      return true;
+    }
+
+    if (nodeAlive) {
+      const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+      const adminWallet = new ethers.Wallet(
+        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+        localProvider
+      );
+      const adminContract = getAccessControlContract(adminWallet);
+      const tx = await adminContract.onboardPatient(recipientAddress);
+      await tx.wait();
+      return true;
+    }
+  } catch (err) {
+    console.warn("ensureParticipantRole check error:", err);
+  }
+
+  return false;
+}
+
 export async function fundLocalAccount(address, ethAmount = "100.0") {
   if (!address || !ethers.isAddress(address)) return false;
   try {

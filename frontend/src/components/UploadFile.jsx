@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { generateAESKey, encryptFile, wrapKeyForRecipient } from '../utils/crypto';
 import { uploadToIPFS } from '../utils/ipfs';
-import { getFileRegistryContract } from '../utils/contracts';
+import { getFileRegistryContract, ensureParticipantRole } from '../utils/contracts';
 import { useRole } from '../context/RoleContext';
 import { supabase } from '../utils/supabaseClient';
 
@@ -178,7 +178,8 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
       setStatus('Wrapping AES encryption key for authorized parties...');
       const wrappedKeyBytes = await wrapKeyForRecipient(aesKey, userKeys.publicKeyJWK);
 
-      // 5. Generate unique FileId
+      // 5. Generate unique FileId & Raw Content Fingerprint
+      const rawContentHash = ethers.keccak256(new Uint8Array(fileBuffer));
       const fileId = ethers.keccak256(
         ethers.toUtf8Bytes(`${file.name}-${Date.now()}-${file.size}`)
       );
@@ -187,6 +188,7 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
       const ownerAddress = account || (signer && (await signer.getAddress().catch(() => "")));
       const metadata = {
         fileId,
+        contentHash: rawContentHash,
         name: file.name,
         size: file.size,
         type: file.type || "application/octet-stream",
@@ -205,6 +207,10 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
         const existing = JSON.parse(localStorage.getItem('blockdrive_files_metadata') || '{}');
         existing[fileId.toLowerCase()] = metadata;
         localStorage.setItem('blockdrive_files_metadata', JSON.stringify(existing));
+
+        const contentRegistry = JSON.parse(localStorage.getItem('blockdrive_content_hashes') || '{}');
+        contentRegistry[rawContentHash.toLowerCase()] = metadata;
+        localStorage.setItem('blockdrive_content_hashes', JSON.stringify(contentRegistry));
 
         // Save raw AES key in local keystore for decryption
         const rawKey = await window.crypto.subtle.exportKey("raw", aesKey);
@@ -240,6 +246,13 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
             const patientJWK = pubRegistry[targetPatientAddress.toLowerCase()];
             if (patientJWK) {
               patientWrappedKey = await wrapKeyForRecipient(aesKey, patientJWK);
+            }
+
+            // Ensure recipient holds an authorized healthcare participant role on-chain
+            try {
+              await ensureParticipantRole(targetPatientAddress);
+            } catch (roleErr) {
+              console.warn('Auto-participant role verification warning:', roleErr);
             }
 
             const grantTx = await contract.addAuthorizedRecipient(

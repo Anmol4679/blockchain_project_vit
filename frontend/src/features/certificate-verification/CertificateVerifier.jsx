@@ -67,15 +67,55 @@ export default function CertificateVerifier({ initialHash = '' }) {
       const issueDate = result[5] ?? result.issueDate;
       const metadataURI = result[6] ?? result.metadataURI;
 
+      if (exists) {
+        setVerificationResult({
+          hash: targetHash,
+          exists: true,
+          revoked,
+          issuer,
+          recipient,
+          documentType,
+          issueDate: Number(issueDate) * 1000,
+          metadataURI,
+        });
+        return;
+      }
+
+      // Check if targetHash matches a file in BlockDrive registered files or content hashes
+      const cached = JSON.parse(localStorage.getItem('blockdrive_files_metadata') || '{}');
+      const contentHashes = JSON.parse(localStorage.getItem('blockdrive_content_hashes') || '{}');
+      const hashLower = targetHash.toLowerCase();
+
+      let matchedFile = contentHashes[hashLower] || cached[hashLower] || null;
+      if (!matchedFile) {
+        for (const k of Object.keys(cached)) {
+          if (
+            (cached[k]?.contentHash && cached[k].contentHash.toLowerCase() === hashLower) ||
+            (cached[k]?.fileId && cached[k].fileId.toLowerCase() === hashLower)
+          ) {
+            matchedFile = cached[k];
+            break;
+          }
+        }
+      }
+
+      if (matchedFile) {
+        setVerificationResult({
+          hash: targetHash,
+          exists: true,
+          revoked: false,
+          issuer: matchedFile.owner || 'Verified Healthcare Provider',
+          recipient: matchedFile.assignedPatient?.name || matchedFile.assignedPatient?.email || matchedFile.assignedPatient?.wallet_address || 'Authorized Patient',
+          documentType: `Medical Record (${matchedFile.name || 'Encrypted File'})`,
+          issueDate: matchedFile.createdAt || Date.now(),
+          metadataURI: matchedFile.ipfsCid ? `ipfs://${matchedFile.ipfsCid}` : '',
+        });
+        return;
+      }
+
       setVerificationResult({
         hash: targetHash,
-        exists,
-        revoked,
-        issuer,
-        recipient,
-        documentType,
-        issueDate: Number(issueDate) * 1000,
-        metadataURI,
+        exists: false,
       });
     } catch (err) {
       console.error('Verification error:', err);

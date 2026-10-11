@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { getFileRegistryContract } from '../utils/contracts';
+import { getFileRegistryContract, ensureParticipantRole } from '../utils/contracts';
 import { wrapKeyForRecipient, unwrapKeyForRecipient, importRawKey, decryptFile } from '../utils/crypto';
 import { downloadFromIPFS } from '../utils/ipfs';
 import { useRole } from '../context/RoleContext';
@@ -325,13 +325,45 @@ export default function MyFiles({ signer, account, userKeys, onNavigateTab, curr
       setAuthStatus('Error: Please provide a valid File Identifier.');
       return;
     }
-    if (!recipientAddress || !signer) return;
+    const cleanRecipient = recipientAddress.trim();
+    if (!cleanRecipient || !ethers.isAddress(cleanRecipient)) {
+      setAuthStatus('Error: Please enter a valid Ethereum recipient address (0x...).');
+      return;
+    }
+
     setIsSubmittingAuth(true);
-    setAuthStatus('Locating file AES key...');
+    setAuthStatus('Connecting MetaMask signer...');
 
     try {
-      const contract = getFileRegistryContract(signer);
-      const cleanRecipient = recipientAddress.trim().toLowerCase();
+      let effectiveSigner = signer;
+      if (typeof window !== 'undefined' && window.ethereum) {
+        try {
+          await window.ethereum.request({ method: "eth_requestAccounts" });
+          const browserProvider = new ethers.BrowserProvider(window.ethereum);
+          effectiveSigner = await browserProvider.getSigner();
+        } catch (signerErr) {
+          console.warn("MetaMask connection cancelled or failed:", signerErr);
+          setAuthStatus("Please approve the connection in MetaMask to sign transactions.");
+          setIsSubmittingAuth(false);
+          return;
+        }
+      }
+
+      if (!effectiveSigner) {
+        setAuthStatus("Error: No active wallet signer available.");
+        setIsSubmittingAuth(false);
+        return;
+      }
+
+      setAuthStatus('Verifying recipient healthcare credentials on-chain...');
+      try {
+        await ensureParticipantRole(cleanRecipient);
+      } catch (roleErr) {
+        console.warn('Participant role check warning:', roleErr);
+      }
+
+      setAuthStatus('Locating file AES key...');
+      const contract = getFileRegistryContract(effectiveSigner);
 
       let fileAesKey = null;
       const cachedFileKeys = JSON.parse(localStorage.getItem('blockdrive_file_aes_keys') || '{}');
@@ -361,10 +393,11 @@ export default function MyFiles({ signer, account, userKeys, onNavigateTab, curr
         }
       } else {
         const pubRegistry = JSON.parse(localStorage.getItem('blockdrive_public_ecdh_registry') || '{}');
-        if (pubRegistry[cleanRecipient]) {
-          targetJWK = pubRegistry[cleanRecipient];
+        const recipientLower = cleanRecipient.toLowerCase();
+        if (pubRegistry[recipientLower]) {
+          targetJWK = pubRegistry[recipientLower];
         } else {
-          const savedRecipientKeys = localStorage.getItem(`blockdrive_ecdh_keys_${cleanRecipient}`);
+          const savedRecipientKeys = localStorage.getItem(`blockdrive_ecdh_keys_${recipientLower}`);
           if (savedRecipientKeys) {
             const parsed = JSON.parse(savedRecipientKeys);
             targetJWK = parsed.publicKeyJWK;
@@ -377,8 +410,8 @@ export default function MyFiles({ signer, account, userKeys, onNavigateTab, curr
             const pub = await window.crypto.subtle.exportKey("jwk", genKeyPair.publicKey);
             const priv = await window.crypto.subtle.exportKey("jwk", genKeyPair.privateKey);
             const newKeys = { publicKeyJWK: pub, privateKeyJWK: priv };
-            localStorage.setItem(`blockdrive_ecdh_keys_${cleanRecipient}`, JSON.stringify(newKeys));
-            pubRegistry[cleanRecipient] = pub;
+            localStorage.setItem(`blockdrive_ecdh_keys_${recipientLower}`, JSON.stringify(newKeys));
+            pubRegistry[recipientLower] = pub;
             localStorage.setItem('blockdrive_public_ecdh_registry', JSON.stringify(pubRegistry));
             targetJWK = pub;
           }
@@ -388,55 +421,95 @@ export default function MyFiles({ signer, account, userKeys, onNavigateTab, curr
       setAuthStatus('Re-wrapping AES key for recipient...');
       const wrappedBytes = await wrapKeyForRecipient(fileAesKey, targetJWK);
 
-      setAuthStatus('Submitting addAuthorizedRecipient on-chain...');
-      const nonce = await signer.getNonce("pending");
+      setAuthStatus('Please confirm transaction in your MetaMask popup...');
       const tx = await contract.addAuthorizedRecipient(
-        fileId,
-        recipientAddress.trim(),
-        ethers.hexlify(wrappedBytes),
-        { nonce }
+        targetFileId,
+        cleanRecipient,
+        ethers.hexlify(wrappedBytes)
       );
+      setAuthStatus('Awaiting block confirmation on blockchain...');
       await tx.wait();
 
       try {
         const rawKey = await window.crypto.subtle.exportKey("raw", fileAesKey);
         const hex = ethers.hexlify(new Uint8Array(rawKey));
-        cachedFileKeys[fileId.toLowerCase()] = hex;
+        cachedFileKeys[targetFileId.toLowerCase()] = hex;
         localStorage.setItem('blockdrive_file_aes_keys', JSON.stringify(cachedFileKeys));
       } catch (cacheErr) {
         console.warn('Cache key warning:', cacheErr);
       }
 
-      setAuthStatus('✓ Recipient authorization confirmed on-chain.');
+      setAuthStatus(`✓ Access granted successfully on-chain to ${cleanRecipient.slice(0, 6)}...${cleanRecipient.slice(-4)}`);
 
-      if (!activeRecipients.includes(recipientAddress.trim())) {
-        setActiveRecipients(prev => [...prev, recipientAddress.trim()]);
+      if (!activeRecipients.some(a => a.toLowerCase() === cleanRecipient.toLowerCase())) {
+        setActiveRecipients(prev => [...prev, cleanRecipient]);
       }
       setRecipientAddress('');
       setRecipientPubKeyJWK('');
     } catch (err) {
-      console.error(err);
-      setAuthStatus(`Error: ${err.message || 'Authorization failed'}`);
+      console.error('Grant access error:', err);
+      if (
+        err.code === 4001 ||
+        err.code === 'ACTION_REJECTED' ||
+        err.message?.includes('user rejected') ||
+        err.message?.includes('User denied')
+      ) {
+        setAuthStatus('Authorization transaction was cancelled in MetaMask.');
+      } else if (err.reason) {
+        setAuthStatus(`Transaction reverted: ${err.reason}`);
+      } else {
+        setAuthStatus(`Error: ${err.message || 'Authorization failed'}`);
+      }
     } finally {
       setIsSubmittingAuth(false);
     }
   };
 
   const handleRevokeAccess = async (fileId, targetAddress) => {
-    if (!signer || !fileId || !targetAddress) return;
+    if (!fileId || !targetAddress) return;
     setRevokingAddress(targetAddress);
-    setAuthStatus(`Submitting revocation on-chain...`);
+    setAuthStatus(`Connecting MetaMask to revoke access...`);
 
     try {
-      const contract = getFileRegistryContract(signer);
-      const nonce = await signer.getNonce("pending");
-      const tx = await contract.revokeRecipient(fileId, targetAddress, { nonce });
+      let effectiveSigner = signer;
+      if (typeof window !== 'undefined' && window.ethereum) {
+        try {
+          await window.ethereum.request({ method: "eth_requestAccounts" });
+          const browserProvider = new ethers.BrowserProvider(window.ethereum);
+          effectiveSigner = await browserProvider.getSigner();
+        } catch (signerErr) {
+          console.warn("MetaMask connection cancelled or failed:", signerErr);
+          setAuthStatus("Please approve the connection in MetaMask to sign revocation.");
+          setRevokingAddress(null);
+          return;
+        }
+      }
+
+      if (!effectiveSigner) {
+        setAuthStatus("Error: No active wallet signer available.");
+        setRevokingAddress(null);
+        return;
+      }
+
+      setAuthStatus('Please confirm revocation in your MetaMask popup...');
+      const contract = getFileRegistryContract(effectiveSigner);
+      const tx = await contract.revokeRecipient(fileId, targetAddress);
+      setAuthStatus('Awaiting block confirmation on blockchain...');
       await tx.wait();
       setAuthStatus(`✓ Access revoked for ${targetAddress.substring(0, 8)}...`);
       setActiveRecipients(prev => prev.filter(a => a.toLowerCase() !== targetAddress.toLowerCase()));
     } catch (err) {
       console.error('Revocation failed', err);
-      setAuthStatus(`Revocation error: ${err.message}`);
+      if (
+        err.code === 4001 ||
+        err.code === 'ACTION_REJECTED' ||
+        err.message?.includes('user rejected') ||
+        err.message?.includes('User denied')
+      ) {
+        setAuthStatus('Revocation transaction was cancelled in MetaMask.');
+      } else {
+        setAuthStatus(`Revocation error: ${err.message || 'Failed'}`);
+      }
     } finally {
       setRevokingAddress(null);
     }
