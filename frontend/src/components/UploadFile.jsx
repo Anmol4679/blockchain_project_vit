@@ -131,13 +131,13 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
     let effectiveSigner = signer;
     if (typeof window !== 'undefined' && window.ethereum) {
       try {
+        await window.ethereum.request({ method: "eth_requestAccounts" });
         const browserProvider = new ethers.BrowserProvider(window.ethereum);
         effectiveSigner = await browserProvider.getSigner();
       } catch (signerErr) {
-        if (onConnectWallet) {
-          await onConnectWallet();
-          return;
-        }
+        console.warn("MetaMask connection cancelled or failed:", signerErr);
+        setStatus("Please approve the connection in MetaMask to sign transactions.");
+        return;
       }
     }
 
@@ -256,21 +256,20 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
         const patientLabel = selectedPatient?.full_name || selectedPatient?.email || targetPatientAddress;
         setStatus(patientLabel ? `✓ Document successfully encrypted and assigned to ${patientLabel}.` : '✓ Document encrypted, pinned to IPFS, and registered on-chain.');
       } catch (onChainErr) {
+        setIsProcessing(false);
         if (
           onChainErr.code === 4001 ||
           onChainErr.code === 'ACTION_REJECTED' ||
           onChainErr.message?.includes('user rejected') ||
           onChainErr.message?.includes('User denied')
         ) {
-          setIsProcessing(false);
           setStatus('Transaction was cancelled in MetaMask.');
           return;
         }
-        console.warn('On-chain registration notice (saved in vault):', onChainErr);
-        const fallbackHash = '0x' + Array.from(window.crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join('');
-        setTxHash(fallbackHash);
-        const patientLabel = selectedPatient?.full_name || selectedPatient?.email || targetPatientAddress;
-        setStatus(`✓ Document encrypted & assigned to ${patientLabel || 'vault'}. Saved in secure repository.`);
+        console.error('On-chain registration failed:', onChainErr);
+        const reason = onChainErr.reason || onChainErr.shortMessage || onChainErr.message || 'Smart contract transaction failed.';
+        setStatus(`Blockchain Error: ${reason}`);
+        return;
       }
 
       if (onFileUploaded) onFileUploaded();

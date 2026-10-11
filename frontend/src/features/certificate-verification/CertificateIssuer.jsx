@@ -97,10 +97,12 @@ export default function CertificateIssuer({ signer, account, onConnectWallet, cu
     let effectiveSigner = signer;
     if (typeof window !== 'undefined' && window.ethereum) {
       try {
+        await window.ethereum.request({ method: "eth_requestAccounts" });
         const browserProvider = new ethers.BrowserProvider(window.ethereum);
         effectiveSigner = await browserProvider.getSigner();
       } catch (err) {
-        if (onConnectWallet) onConnectWallet();
+        console.warn("MetaMask connection cancelled or failed:", err);
+        setStatus("Please approve the connection in MetaMask to sign certificates.");
         return;
       }
     }

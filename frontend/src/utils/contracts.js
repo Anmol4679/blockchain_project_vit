@@ -42,14 +42,19 @@ export const ACCESS_CONTROL_ABI = [
 ];
 
 export const FILE_REGISTRY_ADDRESS =
-  import.meta.env.VITE_FILE_REGISTRY_ADDRESS ||
   deployedConfig.fileRegistryAddress ||
-  "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+  import.meta.env.VITE_FILE_REGISTRY_ADDRESS ||
+  "0xa82fF9aFd8f496c3d6ac40E2a0F282E47488CFc9";
 
 export const ACCESS_CONTROL_ADDRESS =
-  import.meta.env.VITE_ACCESS_CONTROL_ADDRESS ||
   deployedConfig.accessControlAddress ||
-  "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+  import.meta.env.VITE_ACCESS_CONTROL_ADDRESS ||
+  "0x9E545E3C0baAB3E08CdfD552C960A1050f373042";
+
+export const CERTIFICATE_REGISTRY_ADDRESS =
+  deployedConfig.certificateRegistryAddress ||
+  import.meta.env.VITE_CERTIFICATE_REGISTRY_ADDRESS ||
+  "0x1613beB3B2C4f22Ee086B2b38C1476A3cE7f78E8";
 
 export async function isLocalNodeAlive() {
   if (typeof window === "undefined") return false;
