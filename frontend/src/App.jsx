@@ -312,7 +312,7 @@ function AppContent({
               signer={signer}
               account={account}
               userKeys={userKeys}
-              onConnectWallet={connectLocalTestWallet}
+              onConnectWallet={connectWallet}
               onFileUploaded={() => setActiveTab('myfiles')}
               currentRole={activeRole}
             />
@@ -339,7 +339,7 @@ function AppContent({
             <CertificateIssuer
               signer={signer}
               account={account}
-              onConnectWallet={connectLocalTestWallet}
+              onConnectWallet={connectWallet}
               currentRole={activeRole}
             />
           )}

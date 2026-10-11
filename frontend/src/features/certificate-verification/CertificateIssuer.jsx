@@ -94,7 +94,18 @@ export default function CertificateIssuer({ signer, account, onConnectWallet, cu
 
   const handleIssue = async (e) => {
     e.preventDefault();
-    if (!signer || !account) {
+    let effectiveSigner = signer;
+    if (typeof window !== 'undefined' && window.ethereum) {
+      try {
+        const browserProvider = new ethers.BrowserProvider(window.ethereum);
+        effectiveSigner = await browserProvider.getSigner();
+      } catch (err) {
+        if (onConnectWallet) onConnectWallet();
+        return;
+      }
+    }
+
+    if (!effectiveSigner) {
       if (onConnectWallet) onConnectWallet();
       return;
     }
@@ -107,11 +118,11 @@ export default function CertificateIssuer({ signer, account, onConnectWallet, cu
     const finalDocType = documentType === 'Other / Custom Type' ? (customDocType.trim() || 'Custom Document') : documentType;
 
     setIsProcessing(true);
-    setStatus('Submitting certificate registration transaction to blockchain...');
+    setStatus('Confirm certificate issuance in your MetaMask popup...');
     setIssuedRecord(null);
 
     try {
-      const contract = getCertificateRegistryContract(signer);
+      const contract = getCertificateRegistryContract(effectiveSigner);
       const nonce = await signer.getNonce("pending");
       const tx = await contract.issueCertificate(
         documentHash,

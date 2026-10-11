@@ -128,7 +128,20 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
   };
 
   const handleUpload = async () => {
-    if (!signer) {
+    let effectiveSigner = signer;
+    if (typeof window !== 'undefined' && window.ethereum) {
+      try {
+        const browserProvider = new ethers.BrowserProvider(window.ethereum);
+        effectiveSigner = await browserProvider.getSigner();
+      } catch (signerErr) {
+        if (onConnectWallet) {
+          await onConnectWallet();
+          return;
+        }
+      }
+    }
+
+    if (!effectiveSigner) {
       if (onConnectWallet) onConnectWallet();
       return;
     }
@@ -204,16 +217,16 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
       }
 
       // 7. Submit registration transaction to FileRegistry.sol
-      setStatus('Submitting file registration to blockchain ledger...');
+      setStatus('Confirm transaction in your MetaMask popup...');
       try {
-        const contract = getFileRegistryContract(signer);
+        const contract = getFileRegistryContract(effectiveSigner);
         const tx = await contract.registerFile(
           fileId,
           ipfsCid,
           ethers.hexlify(wrappedKeyBytes)
         );
 
-        setStatus('Awaiting block confirmation...');
+        setStatus('Awaiting block confirmation on blockchain...');
         await tx.wait();
         setTxHash(tx.hash);
 
@@ -229,7 +242,7 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
               patientWrappedKey = await wrapKeyForRecipient(aesKey, patientJWK);
             }
 
-            const grantTx = await contract.grantAccess(
+            const grantTx = await contract.addAuthorizedRecipient(
               fileId,
               targetPatientAddress,
               ethers.hexlify(patientWrappedKey)
@@ -243,6 +256,16 @@ export default function UploadFile({ signer, userKeys, onFileUploaded, onConnect
         const patientLabel = selectedPatient?.full_name || selectedPatient?.email || targetPatientAddress;
         setStatus(patientLabel ? `✓ Document successfully encrypted and assigned to ${patientLabel}.` : '✓ Document encrypted, pinned to IPFS, and registered on-chain.');
       } catch (onChainErr) {
+        if (
+          onChainErr.code === 4001 ||
+          onChainErr.code === 'ACTION_REJECTED' ||
+          onChainErr.message?.includes('user rejected') ||
+          onChainErr.message?.includes('User denied')
+        ) {
+          setIsProcessing(false);
+          setStatus('Transaction was cancelled in MetaMask.');
+          return;
+        }
         console.warn('On-chain registration notice (saved in vault):', onChainErr);
         const fallbackHash = '0x' + Array.from(window.crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join('');
         setTxHash(fallbackHash);
