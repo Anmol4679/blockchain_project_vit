@@ -12,7 +12,7 @@ import RoleLogin from './components/RoleLogin';
 import RoleManagement from './components/admin/RoleManagement';
 import { CertificateVerifier, CertificateIssuer } from './features/certificate-verification';
 import { RoleProvider, useRole } from './context/RoleContext';
-import { isLocalNodeAlive } from './utils/contracts';
+import { isLocalNodeAlive, fundLocalAccount } from './utils/contracts';
 
 function AppContent({
   signer,
@@ -556,6 +556,16 @@ export default function App() {
       if (currentChainHex !== "0x7a69" && currentChainHex !== "0xaa36a7") {
         await switchToLocalhostNetwork();
       }
+
+      // Automatically fund account with test ETH on localhost if balance is low
+      try {
+        const bal = await browserProvider.getBalance(accounts[0]);
+        if (bal < ethers.parseEther("1.0")) {
+          await fundLocalAccount(accounts[0], "100.0");
+        }
+      } catch (fundErr) {
+        console.debug("Local auto-faucet notice:", fundErr);
+      }
     } catch (err) {
       console.error("Wallet connection error:", err);
       if (err.code === -32002) {
@@ -582,6 +592,11 @@ export default function App() {
             setSigner(userSigner);
             setAccount(accounts[0]);
             setChainId("0x" + network.chainId.toString(16));
+
+            const bal = await browserProvider.getBalance(accounts[0]);
+            if (bal < ethers.parseEther("1.0")) {
+              await fundLocalAccount(accounts[0], "100.0");
+            }
           } catch (e) {
             console.warn("Auto-connect initialization skipped:", e);
           }
@@ -601,6 +616,11 @@ export default function App() {
             setAccount(accounts[0]);
             setChainId("0x" + network.chainId.toString(16));
             setError("");
+
+            const bal = await browserProvider.getBalance(accounts[0]);
+            if (bal < ethers.parseEther("1.0")) {
+              await fundLocalAccount(accounts[0], "100.0");
+            }
           } catch (e) {
             console.error(e);
           }

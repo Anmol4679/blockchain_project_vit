@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { supabase } from '../utils/supabaseClient';
-import { checkAddressRole } from '../utils/contracts';
+import { checkAddressRole, fundLocalAccount, getLocalBalance } from '../utils/contracts';
 
 export default function RoleLogin({
   role,
@@ -58,6 +58,41 @@ export default function RoleLogin({
       setWalletRoleStatus('unregistered');
     }
   }, [inputWallet, verifyWalletOnChain]);
+
+  const [faucetLoading, setFaucetLoading] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(null);
+
+  useEffect(() => {
+    const target = inputWallet || account;
+    if (target && ethers.isAddress(target)) {
+      getLocalBalance(target).then((b) => setWalletBalance(b));
+    } else {
+      setWalletBalance(null);
+    }
+  }, [inputWallet, account]);
+
+  const handleRequestFaucet = async () => {
+    const target = inputWallet || account;
+    if (!target || !ethers.isAddress(target)) {
+      setMessage({ text: 'Please enter or connect a valid wallet address first.', type: 'error' });
+      return;
+    }
+    setFaucetLoading(true);
+    try {
+      const ok = await fundLocalAccount(target, "100.0");
+      if (ok) {
+        const bal = await getLocalBalance(target);
+        setWalletBalance(bal);
+        setMessage({ text: `✓ Added 100 Test ETH to ${target.slice(0, 6)}...${target.slice(-4)}! Balance: ${parseFloat(bal).toFixed(2)} ETH`, type: 'success' });
+      } else {
+        setMessage({ text: 'Could not contact local Hardhat node on port 8545.', type: 'error' });
+      }
+    } catch (e) {
+      setMessage({ text: e.message || 'Faucet request failed', type: 'error' });
+    } finally {
+      setFaucetLoading(false);
+    }
+  };
 
   const roleMeta = {
     patient: {
@@ -370,6 +405,22 @@ export default function RoleLogin({
                       </button>
                     )}
                   </div>
+
+                  {(inputWallet || account) && (
+                    <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                      <span className="text-black font-mono text-[11px]">
+                        {walletBalance !== null ? `Balance: ${parseFloat(walletBalance).toFixed(2)} ETH` : 'Checking balance...'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleRequestFaucet}
+                        disabled={faucetLoading}
+                        className="text-black hover:underline cursor-pointer font-medium text-[11px]"
+                      >
+                        {faucetLoading ? 'Adding test ETH...' : '+ Claim 100 Test ETH'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 

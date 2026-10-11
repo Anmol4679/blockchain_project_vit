@@ -147,3 +147,47 @@ export async function revokeHealthcareRole(signer, account, role) {
   const tx = await contract.revokeHealthcareRole(account, roleBytes);
   return await tx.wait();
 }
+
+export async function fundLocalAccount(address, ethAmount = "100.0") {
+  if (!address || !ethers.isAddress(address)) return false;
+  try {
+    const weiHex = "0x" + ethers.parseEther(ethAmount.toString()).toString(16);
+    const res = await fetch("http://127.0.0.1:8545", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "hardhat_setBalance",
+        params: [address, weiHex],
+        id: Date.now(),
+      }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error("Failed to fund local account:", err);
+    return false;
+  }
+}
+
+export async function getLocalBalance(address) {
+  if (!address || !ethers.isAddress(address)) return "0.0";
+  try {
+    const res = await fetch("http://127.0.0.1:8545", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "eth_getBalance",
+        params: [address, "latest"],
+        id: Date.now(),
+      }),
+    });
+    const data = await res.json();
+    if (data && data.result) {
+      return ethers.formatEther(BigInt(data.result));
+    }
+    return "0.0";
+  } catch {
+    return "0.0";
+  }
+}

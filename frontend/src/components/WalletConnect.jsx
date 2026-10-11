@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRole } from '../context/RoleContext';
+import { fundLocalAccount, getLocalBalance } from '../utils/contracts';
 
 export function formatRoleName(roleKey) {
   if (!roleKey) return 'Unregistered';
@@ -23,6 +24,30 @@ export default function WalletConnect({
   const isLocalOrSepolia = chainId === "0x7a69" || chainId === "0xaa36a7" || chainId === "31337" || chainId === "11155111";
   const { role } = useRole();
   const [copied, setCopied] = useState(false);
+  const [balance, setBalance] = useState(null);
+  const [faucetLoading, setFaucetLoading] = useState(false);
+
+  useEffect(() => {
+    if (account) {
+      getLocalBalance(account).then((b) => setBalance(b));
+    } else {
+      setBalance(null);
+    }
+  }, [account]);
+
+  const handleFund = async () => {
+    if (!account) return;
+    setFaucetLoading(true);
+    try {
+      await fundLocalAccount(account, "100.0");
+      const newBal = await getLocalBalance(account);
+      setBalance(newBal);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFaucetLoading(false);
+    }
+  };
 
   const displayRole = formatRoleName(currentRole || (role !== 'unregistered' ? role : '') || role || 'doctor');
 
@@ -64,6 +89,11 @@ export default function WalletConnect({
                 <span className="text-xs text-black bg-gray-100 px-2 py-0.5 rounded font-medium">
                   {displayRole}
                 </span>
+                {balance !== null && (
+                  <span className="text-xs text-black bg-gray-50 border border-gray-200 px-2 py-0.5 rounded font-mono">
+                    {parseFloat(balance).toFixed(2)} ETH
+                  </span>
+                )}
               </div>
             ) : (
               <span>Connect MetaMask to sign transactions and encrypt records.</span>
@@ -73,6 +103,17 @@ export default function WalletConnect({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 self-end md:self-center">
+        {account && (
+          <button
+            onClick={handleFund}
+            disabled={faucetLoading}
+            title="Request 100 local test ETH to this account"
+            className="px-2.5 py-1 bg-white hover:bg-gray-50 border border-gray-300 text-black text-xs font-medium rounded cursor-pointer"
+          >
+            {faucetLoading ? "Funding..." : "+100 Test ETH"}
+          </button>
+        )}
+
         {account && !isLocalOrSepolia && (
           <button
             onClick={onSwitchNetwork}
