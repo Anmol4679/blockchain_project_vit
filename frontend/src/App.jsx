@@ -635,8 +635,12 @@ export default function App() {
     setCurrentView('roleLogin');
   };
 
-  const handleEnterDashboard = (chosenRole) => {
-    const cleanAccount = account ? account.toLowerCase() : 'default_session';
+  const handleEnterDashboard = (chosenRole, customAccount) => {
+    const activeAccount = (customAccount && ethers.isAddress(customAccount)) ? customAccount : account;
+    if (customAccount && ethers.isAddress(customAccount) && customAccount.toLowerCase() !== (account || '').toLowerCase()) {
+      setAccount(customAccount);
+    }
+    const cleanAccount = activeAccount ? activeAccount.toLowerCase() : 'default_session';
     localStorage.setItem(`blockdrive_role_override_${cleanAccount}`, chosenRole);
     localStorage.setItem('blockdrive_active_role', chosenRole);
     setSelectedRole(chosenRole);
@@ -671,6 +675,7 @@ export default function App() {
           onConnectWallet={connectWallet}
           isConnectingWallet={isConnecting}
           onEnterDashboard={handleEnterDashboard}
+          onSetAccount={setAccount}
         />
       )}
 

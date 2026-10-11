@@ -55,7 +55,7 @@ export async function isLocalNodeAlive() {
   if (typeof window === "undefined") return false;
   try {
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 400);
+    const id = setTimeout(() => controller.abort(), 2500);
     const res = await fetch("http://127.0.0.1:8545", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -75,6 +75,45 @@ export function getFileRegistryContract(signerOrProvider) {
 
 export function getAccessControlContract(signerOrProvider) {
   return new ethers.Contract(ACCESS_CONTROL_ADDRESS, ACCESS_CONTROL_ABI, signerOrProvider);
+}
+
+export async function checkAddressRole(account) {
+  if (!account || !ethers.isAddress(account)) return "unregistered";
+  try {
+    let provider;
+    if (typeof window !== "undefined" && window.ethereum) {
+      provider = new ethers.BrowserProvider(window.ethereum);
+    }
+    const nodeAlive = await isLocalNodeAlive();
+    if (nodeAlive) {
+      provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+    }
+    if (!provider) return "unregistered";
+
+    const contract = getAccessControlContract(provider);
+    const [adminRole, doctorRole, staffRole, patientRole] = await Promise.all([
+      contract.DEFAULT_ADMIN_ROLE(),
+      contract.DOCTOR_ROLE(),
+      contract.MEDICAL_STAFF_ROLE(),
+      contract.PATIENT_ROLE(),
+    ]);
+
+    const [isAdmin, isDoctor, isStaff, isPatient] = await Promise.all([
+      contract.hasRole(adminRole, account),
+      contract.hasRole(doctorRole, account),
+      contract.hasRole(staffRole, account),
+      contract.hasRole(patientRole, account),
+    ]);
+
+    if (isAdmin) return "admin";
+    if (isDoctor) return "doctor";
+    if (isStaff) return "medicalStaff";
+    if (isPatient) return "patient";
+    return "unregistered";
+  } catch (err) {
+    console.warn("Error querying address role:", err);
+    return "unregistered";
+  }
 }
 
 export async function onboardDoctor(signer, account) {

@@ -8,7 +8,9 @@ import {
   onboardMedicalStaff,
   onboardPatient,
   revokeHealthcareRole,
-  isLocalNodeAlive
+  isLocalNodeAlive,
+  checkAddressRole,
+  getAccessControlContract
 } from '../../utils/contracts';
 
 // Isolated provisioning client that will NOT overwrite the logged-in admin session
@@ -36,14 +38,16 @@ export default function RoleManagement({ signer, account }) {
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
-  const [newUserWallet, setNewUserWallet] = useState('');
+  const [newUserWallet, setNewUserWallet] = useState(account || '');
+  const [newUserWalletRole, setNewUserWalletRole] = useState('unregistered');
   const [showPassword, setShowPassword] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [createMessage, setCreateMessage] = useState({ text: '', type: '' });
   const [lastCreatedCredentials, setLastCreatedCredentials] = useState(null);
 
-  // Blockchain Onboarding State
+  // Blockchain Onboarding State (Tab 3 & Quick Box)
   const [targetAddress, setTargetAddress] = useState(account || '');
+  const [targetAddressStatus, setTargetAddressStatus] = useState('unregistered');
   const [blockchainRole, setBlockchainRole] = useState('doctor');
   const [isContractProcessing, setIsContractProcessing] = useState(false);
   const [contractStatus, setContractStatus] = useState('');
@@ -58,6 +62,38 @@ export default function RoleManagement({ signer, account }) {
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(''), 2000);
   };
+
+  // Helper to query on-chain role of an address
+  const fetchAddressRole = useCallback(async (address, setter) => {
+    if (!address || !ethers.isAddress(address)) {
+      setter('unregistered');
+      return;
+    }
+    try {
+      const role = await checkAddressRole(address);
+      setter(role);
+    } catch {
+      setter('unregistered');
+    }
+  }, []);
+
+  // Check role of newUserWallet when changed
+  useEffect(() => {
+    if (newUserWallet && ethers.isAddress(newUserWallet)) {
+      fetchAddressRole(newUserWallet, setNewUserWalletRole);
+    } else {
+      setNewUserWalletRole('unregistered');
+    }
+  }, [newUserWallet, fetchAddressRole]);
+
+  // Check role of targetAddress when changed
+  useEffect(() => {
+    if (targetAddress && ethers.isAddress(targetAddress)) {
+      fetchAddressRole(targetAddress, setTargetAddressStatus);
+    } else {
+      setTargetAddressStatus('unregistered');
+    }
+  }, [targetAddress, fetchAddressRole]);
 
   // Generate a randomized, secure temporary password
   const generatePassword = () => {
@@ -94,7 +130,135 @@ export default function RoleManagement({ signer, account }) {
     loadProfiles();
   }, [loadProfiles]);
 
-  // Create User Handler (Email + Password)
+  // Helper for admin contract signing
+  const getAdminSigner = async () => {
+    try {
+      const alive = await isLocalNodeAlive();
+      if (alive) {
+        const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+        return new ethers.Wallet(
+          "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+          localProvider
+        );
+      }
+      return signer;
+    } catch {
+      return signer;
+    }
+  };
+
+  // Low-level function to assign on-chain role via smart contract
+  const executeOnChainRoleAssignment = async (roleToAssign, addr) => {
+    if (!addr || !ethers.isAddress(addr)) {
+      return { success: false, error: 'Please provide a valid Ethereum wallet address (0x...).' };
+    }
+
+    try {
+      const activeAdmin = await getAdminSigner();
+      if (!activeAdmin) {
+        return { success: false, error: 'No Ethereum provider or admin signer available.' };
+      }
+
+      const contract = getAccessControlContract(activeAdmin);
+
+      // Query current roles
+      const [doctorRole, staffRole, patientRole] = await Promise.all([
+        contract.DOCTOR_ROLE(),
+        contract.MEDICAL_STAFF_ROLE(),
+        contract.PATIENT_ROLE(),
+      ]);
+
+      const [hasDoctor, hasStaff, hasPatient] = await Promise.all([
+        contract.hasRole(doctorRole, addr),
+        contract.hasRole(staffRole, addr),
+        contract.hasRole(patientRole, addr),
+      ]);
+
+      let tx;
+      if (roleToAssign === 'doctor') {
+        if (hasDoctor) {
+          return { success: true, alreadyAssigned: true };
+        }
+        if (hasStaff) {
+          try {
+            const rTx = await contract.revokeHealthcareRole(addr, staffRole);
+            await rTx.wait();
+          } catch (rErr) {
+            console.warn('Revoke staff note:', rErr);
+          }
+        }
+        if (hasPatient) {
+          try {
+            const rTx = await contract.revokeHealthcareRole(addr, patientRole);
+            await rTx.wait();
+          } catch (rErr) {
+            console.warn('Revoke patient note:', rErr);
+          }
+        }
+        tx = await contract.onboardDoctor(addr);
+      } else if (roleToAssign === 'medicalStaff') {
+        if (hasStaff) {
+          return { success: true, alreadyAssigned: true };
+        }
+        if (hasDoctor) {
+          try {
+            const rTx = await contract.revokeHealthcareRole(addr, doctorRole);
+            await rTx.wait();
+          } catch (rErr) {
+            console.warn('Revoke doctor note:', rErr);
+          }
+        }
+        if (hasPatient) {
+          try {
+            const rTx = await contract.revokeHealthcareRole(addr, patientRole);
+            await rTx.wait();
+          } catch (rErr) {
+            console.warn('Revoke patient note:', rErr);
+          }
+        }
+        tx = await contract.onboardMedicalStaff(addr);
+      } else if (roleToAssign === 'patient') {
+        if (hasPatient) {
+          return { success: true, alreadyAssigned: true };
+        }
+        if (hasDoctor) {
+          try {
+            const rTx = await contract.revokeHealthcareRole(addr, doctorRole);
+            await rTx.wait();
+          } catch (rErr) {
+            console.warn('Revoke doctor note:', rErr);
+          }
+        }
+        if (hasStaff) {
+          try {
+            const rTx = await contract.revokeHealthcareRole(addr, staffRole);
+            await rTx.wait();
+          } catch (rErr) {
+            console.warn('Revoke staff note:', rErr);
+          }
+        }
+        tx = await contract.onboardPatient(addr);
+      } else {
+        return { success: false, error: `Unsupported role: ${roleToAssign}` };
+      }
+
+      const receipt = await tx.wait();
+      if (refreshRole) await refreshRole();
+
+      return {
+        success: true,
+        hash: receipt?.hash || tx?.hash || 'confirmed'
+      };
+    } catch (err) {
+      console.error('On-chain role assignment error:', err);
+      return {
+        success: false,
+        error: err?.reason || err?.message || 'Smart contract transaction reverted.'
+      };
+    }
+  };
+
+  // Create User Handler (Email + Password + Optional Blockchain Onboarding)
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setCreateMessage({ text: '', type: '' });
@@ -115,13 +279,21 @@ export default function RoleManagement({ signer, account }) {
       return;
     }
 
+    if (walletClean && !ethers.isAddress(walletClean)) {
+      setCreateMessage({ text: 'The Ethereum wallet address is invalid. Please enter a valid 0x... address.', type: 'error' });
+      return;
+    }
+
     setIsCreatingUser(true);
     try {
-      // Get current admin user ID
+      // 1. Get current admin user ID
       const { data: { user: currentAdmin } } = await supabase.auth.getUser();
       const adminId = currentAdmin?.id || null;
 
-      // Register new user with isolated client so admin session remains intact
+      let isExistingUser = false;
+      let userId = null;
+
+      // 2. Register new user with isolated client
       const { data, error } = await provisionerAuthClient.auth.signUp({
         email: emailClean,
         password: passwordClean,
@@ -135,13 +307,23 @@ export default function RoleManagement({ signer, account }) {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.toLowerCase().includes('already registered')) {
+          isExistingUser = true;
+          const existing = profiles.find(p => p.email?.toLowerCase() === emailClean);
+          if (existing) userId = existing.id;
+        } else {
+          throw error;
+        }
+      } else if (data?.user) {
+        userId = data.user.id;
+      }
 
-      // Also upsert directly into profiles in case trigger has delay
-      if (data.user) {
-        try {
+      // 3. Upsert into profiles table
+      try {
+        if (userId) {
           await supabase.from('profiles').upsert({
-            id: data.user.id,
+            id: userId,
             email: emailClean,
             full_name: nameClean,
             role: newUserRole,
@@ -149,8 +331,30 @@ export default function RoleManagement({ signer, account }) {
             created_by: adminId,
             updated_at: new Date().toISOString()
           });
-        } catch (upsertErr) {
-          console.warn('Profile upsert notice:', upsertErr);
+        } else {
+          await supabase.from('profiles').update({
+            full_name: nameClean,
+            role: newUserRole,
+            wallet_address: walletClean || null,
+            updated_at: new Date().toISOString()
+          }).eq('email', emailClean);
+        }
+      } catch (upsertErr) {
+        console.warn('Profile sync notice:', upsertErr);
+      }
+
+      // 4. If a wallet address was entered, EXECUTE ON-CHAIN TRANSACTION!
+      let onChainSummary = '';
+      if (walletClean) {
+        const onChainRes = await executeOnChainRoleAssignment(newUserRole, walletClean);
+        if (onChainRes.success) {
+          onChainSummary = ` and granted on-chain ${newUserRole.toUpperCase()} role to ${walletClean.slice(0, 6)}...${walletClean.slice(-4)}`;
+          if (onChainRes.hash && onChainRes.hash !== 'confirmed') {
+            onChainSummary += ` (Tx: ${onChainRes.hash.slice(0, 10)}...)`;
+          }
+          fetchAddressRole(walletClean, setNewUserWalletRole);
+        } else {
+          onChainSummary = ` (Note: Blockchain error: ${onChainRes.error})`;
         }
       }
 
@@ -163,15 +367,16 @@ export default function RoleManagement({ signer, account }) {
       });
 
       setCreateMessage({
-        text: `✓ Successfully created account for ${nameClean} (${newUserRole.toUpperCase()})!`,
-        type: 'success'
+        text: isExistingUser
+          ? `✓ Updated existing profile for ${emailClean}${onChainSummary}!`
+          : `✓ Successfully created account for ${nameClean} (${newUserRole.toUpperCase()})${onChainSummary}!`,
+        type: onChainSummary.includes('error') ? 'error' : 'success'
       });
 
       // Reset form
       setNewUserName('');
       setNewUserEmail('');
       setNewUserPassword('');
-      setNewUserWallet('');
 
       // Refresh directory
       await loadProfiles();
@@ -197,24 +402,7 @@ export default function RoleManagement({ signer, account }) {
     }
   };
 
-  // Helper for admin contract signing
-  const getAdminSigner = async () => {
-    try {
-      const alive = await isLocalNodeAlive();
-      if (alive) {
-        const localProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-        return new ethers.Wallet(
-          "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-          localProvider
-        );
-      }
-      return signer;
-    } catch {
-      return signer;
-    }
-  };
-
-  // Onboard on Blockchain
+  // Onboard on Blockchain directly (from Tab 3 or Directory)
   const handleBlockchainOnboard = async (overrideRole, overrideAddress) => {
     const roleToAssign = overrideRole || blockchainRole;
     const addr = overrideAddress || targetAddress;
@@ -226,30 +414,21 @@ export default function RoleManagement({ signer, account }) {
 
     setIsContractProcessing(true);
     setContractError('');
-    setContractStatus(`Submitting on-chain transaction to register ${roleToAssign.toUpperCase()}...`);
+    setContractStatus(`Submitting on-chain transaction to register ${roleToAssign.toUpperCase()} on BlockDriveAccessControl...`);
 
-    try {
-      const activeAdmin = await getAdminSigner();
+    const result = await executeOnChainRoleAssignment(roleToAssign, addr);
+    setIsContractProcessing(false);
 
-      // Revoke any previous role to prevent overlaps
-      try { await revokeHealthcareRole(activeAdmin, addr, 'patient'); } catch {}
-      try { await revokeHealthcareRole(activeAdmin, addr, 'doctor'); } catch {}
-      try { await revokeHealthcareRole(activeAdmin, addr, 'medicalStaff'); } catch {}
-
-      if (roleToAssign === 'doctor') {
-        await onboardDoctor(activeAdmin, addr);
-      } else if (roleToAssign === 'medicalStaff') {
-        await onboardMedicalStaff(activeAdmin, addr);
-      } else if (roleToAssign === 'patient') {
-        await onboardPatient(activeAdmin, addr);
-      }
-
-      setContractStatus(`✓ On-chain permission granted! ${addr.slice(0, 8)}... is now registered as ${roleToAssign.toUpperCase()}.`);
-      if (refreshRole) await refreshRole();
-    } catch (err) {
-      setContractError(err?.reason || err?.message || 'On-chain transaction failed.');
-    } finally {
-      setIsContractProcessing(false);
+    if (result.success) {
+      setContractStatus(`✓ On-chain permission granted! ${addr.slice(0, 8)}... is now registered as ${roleToAssign.toUpperCase()}.${result.hash ? ` (Tx: ${result.hash.slice(0, 10)}...)` : ''}`);
+      fetchAddressRole(addr, setTargetAddressStatus);
+      // Sync to profiles if matching wallet exists
+      try {
+        await supabase.from('profiles').update({ role: roleToAssign }).eq('wallet_address', addr);
+        loadProfiles();
+      } catch {}
+    } else {
+      setContractError(result.error);
     }
   };
 
@@ -281,7 +460,7 @@ export default function RoleManagement({ signer, account }) {
             </span>
           </div>
           <p className="text-xs font-normal text-black mt-0.5 opacity-75">
-            Provision healthcare practitioner IDs, generate user credentials, and supervise smart contract access.
+            Provision healthcare practitioner IDs, assign on-chain roles on Ethereum, and supervise smart contract access.
           </p>
         </div>
 
@@ -492,21 +671,37 @@ export default function RoleManagement({ signer, account }) {
                         </td>
                         <td className="py-2.5 px-3.5 text-right">
                           <div className="inline-flex items-center gap-2">
-                            {p.wallet_address && (
+                            {p.wallet_address ? (
                               <button
                                 type="button"
                                 onClick={() => handleBlockchainOnboard(p.role, p.wallet_address)}
-                                className="text-black hover:underline text-xs cursor-pointer"
-                                title="Sync On-Chain Role"
+                                className="text-black hover:underline text-xs cursor-pointer font-medium"
+                                title="Authorize Role on Blockchain"
                               >
-                                [Sync]
+                                [Authorize On-Chain]
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const addr = prompt(`Enter Ethereum wallet address for ${p.email}:`);
+                                  if (addr && ethers.isAddress(addr.trim())) {
+                                    handleBlockchainOnboard(p.role, addr.trim());
+                                  } else if (addr) {
+                                    alert('Invalid Ethereum wallet address format (0x...).');
+                                  }
+                                }}
+                                className="text-black hover:underline text-xs cursor-pointer"
+                                title="Link wallet and authorize"
+                              >
+                                [+ Link Wallet]
                               </button>
                             )}
                             {p.role !== 'admin' && (
                               <button
                                 type="button"
                                 onClick={() => handleDeleteProfile(p.id, p.email)}
-                                className="text-black hover:underline text-xs cursor-pointer"
+                                className="text-black hover:underline text-xs cursor-pointer opacity-70"
                                 title="Remove User Profile"
                               >
                                 [Delete]
@@ -524,20 +719,26 @@ export default function RoleManagement({ signer, account }) {
         </div>
       )}
 
-      {/* VIEW 2: CREATE USER CREDENTIALS (ID + PASSWORD GENERATOR) */}
+      {/* VIEW 2: CREATE USER CREDENTIALS (ID + PASSWORD GENERATOR + ON-CHAIN AUTHORIZATION) */}
       {activeAdminView === 'create' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-black">
           {/* Create Form */}
           <div className="lg:col-span-2 bg-white border border-gray-200 rounded-lg p-4 sm:p-5 space-y-5 text-black">
             <div>
-              <h3 className="text-sm font-semibold text-black">Create Healthcare Practitioner Account</h3>
+              <h3 className="text-sm font-semibold text-black">Create & Authorize Healthcare Practitioner</h3>
               <p className="text-xs font-normal text-black mt-0.5 opacity-75">
-                Generate login credentials for Doctors, Patients, or Medical Staff. The user will use this Email ID and Password to sign in.
+                Generate login credentials and authorize the practitioner's Ethereum wallet directly on the smart contract.
               </p>
             </div>
 
             {createMessage.text && (
-              <div className="p-3 rounded-lg text-xs bg-gray-50 border border-gray-300 text-black">
+              <div className={`p-3 rounded-lg text-xs border ${
+                createMessage.type === 'error'
+                  ? 'bg-red-50 border-red-200 text-black'
+                  : createMessage.type === 'info'
+                  ? 'bg-blue-50 border-blue-200 text-black'
+                  : 'bg-gray-50 border-gray-300 text-black'
+              }`}>
                 <span>{createMessage.text}</span>
               </div>
             )}
@@ -639,39 +840,146 @@ export default function RoleManagement({ signer, account }) {
                 </div>
               </div>
 
-              {/* Optional Wallet Address */}
+              {/* Optional Wallet Address + Live Role Status */}
               <div>
-                <label className="block text-xs font-medium text-black mb-1">
-                  Optional Ethereum Wallet Address (0x...)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-black">
+                    Ethereum Wallet Address (0x...)
+                  </label>
+                  {account && (
+                    <button
+                      type="button"
+                      onClick={() => setNewUserWallet(account)}
+                      className="text-[11px] font-medium text-black underline cursor-pointer"
+                    >
+                      Use Connected Wallet ({account.slice(0, 6)}...{account.slice(-4)})
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
-                  placeholder="0x... (Optional, for blockchain verification)"
+                  placeholder="0x... (Will be granted on-chain role immediately)"
                   value={newUserWallet}
                   onChange={(e) => setNewUserWallet(e.target.value)}
                   className="w-full bg-white border border-gray-300 focus:border-black rounded-lg px-3 py-2 text-xs text-black outline-none font-mono"
                 />
+                {newUserWallet && ethers.isAddress(newUserWallet) && (
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-black">
+                    <span className="opacity-60">Current On-Chain Status:</span>
+                    <span className={`font-semibold capitalize ${
+                      newUserWalletRole === 'unregistered' ? 'opacity-60' : 'text-black'
+                    }`}>
+                      {newUserWalletRole}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
                 disabled={isCreatingUser}
-                className="w-full py-2 px-4 bg-black hover:bg-gray-900 disabled:bg-gray-300 text-white font-medium rounded-lg text-xs flex items-center justify-center cursor-pointer"
+                className="w-full py-2.5 px-4 bg-black hover:bg-gray-900 disabled:bg-gray-300 text-white font-medium rounded-lg text-xs flex items-center justify-center cursor-pointer transition-colors"
               >
-                <span>{isCreatingUser ? 'Provisioning Account...' : `Create & Authorize ${newUserRole.charAt(0).toUpperCase() + newUserRole.slice(1)} Account`}</span>
+                <span>
+                  {isCreatingUser
+                    ? 'Provisioning & Submitting Blockchain Transaction...'
+                    : `Create & Authorize ${newUserRole.charAt(0).toUpperCase() + newUserRole.slice(1)} Account`}
+                </span>
               </button>
             </form>
           </div>
 
-          {/* Right Column: Generated Credentials Card */}
+          {/* Right Column: Direct On-Chain Role Box & Generated Credentials */}
           <div className="space-y-4 text-black">
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sm:p-5 space-y-4 text-black">
+            {/* Quick Instant On-Chain Role Grant Box */}
+            <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 space-y-3 text-black">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-black">
+                  Instant On-Chain Role Grant
+                </h4>
+                <span className="text-[10px] bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded font-mono text-black">
+                  Direct Blockchain
+                </span>
+              </div>
+              <p className="text-[11px] font-normal text-black opacity-75">
+                Already have a wallet? Assign <code className="font-mono bg-gray-100 px-1 py-0.5 rounded">DOCTOR_ROLE</code> directly on Ethereum without creating a new email.
+              </p>
+
+              <div className="space-y-2.5 pt-1">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-medium text-black">Wallet Address</span>
+                    {account && (
+                      <button
+                        type="button"
+                        onClick={() => setTargetAddress(account)}
+                        className="text-[10px] underline text-black cursor-pointer"
+                      >
+                        Paste Connected ({account.slice(0, 6)}...)
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="0x..."
+                    value={targetAddress}
+                    onChange={(e) => setTargetAddress(e.target.value)}
+                    className="w-full bg-white border border-gray-300 rounded px-2.5 py-1.5 text-xs font-mono outline-none text-black"
+                  />
+                  {targetAddress && ethers.isAddress(targetAddress) && (
+                    <div className="text-[10px] mt-1 text-black opacity-70">
+                      On-Chain Role: <strong className="capitalize">{targetAddressStatus}</strong>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-1.5">
+                  {['doctor', 'medicalStaff', 'patient'].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setBlockchainRole(r)}
+                      className={`flex-1 py-1 rounded text-[11px] capitalize border cursor-pointer ${
+                        blockchainRole === r
+                          ? 'border-black bg-black text-white font-medium'
+                          : 'border-gray-200 bg-white text-black hover:bg-gray-50'
+                      }`}
+                    >
+                      {r === 'medicalStaff' ? 'Staff' : r}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleBlockchainOnboard()}
+                  disabled={isContractProcessing || !targetAddress || !ethers.isAddress(targetAddress)}
+                  className="w-full py-1.5 bg-black hover:bg-gray-900 disabled:bg-gray-300 text-white text-xs font-medium rounded cursor-pointer"
+                >
+                  <span>{isContractProcessing ? 'Submitting Transaction...' : `Grant ${blockchainRole.toUpperCase()} On-Chain`}</span>
+                </button>
+
+                {contractStatus && (
+                  <div className="p-2 bg-gray-50 border border-gray-200 rounded text-[11px] text-black">
+                    <span>{contractStatus}</span>
+                  </div>
+                )}
+                {contractError && (
+                  <div className="p-2 bg-red-50 border border-red-200 rounded text-[11px] text-black">
+                    <span>{contractError}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Credentials Handout Slip */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sm:p-5 space-y-3 text-black">
               <h4 className="text-xs font-semibold text-black">
                 Credentials Handout Slip
               </h4>
               <p className="text-xs font-normal text-black opacity-75">
-                When you create an account, copy the credentials below to provide to the doctor, patient, or staff member.
+                When you create an account, copy the credentials below to provide to the practitioner.
               </p>
 
               {lastCreatedCredentials ? (
@@ -716,12 +1024,28 @@ export default function RoleManagement({ signer, account }) {
                         </button>
                       </div>
                     </div>
+
+                    {lastCreatedCredentials.wallet && (
+                      <div>
+                        <span className="text-[10px] font-medium text-black opacity-60 block">Authorized Wallet</span>
+                        <div className="flex items-center justify-between bg-gray-50 p-1.5 rounded border border-gray-200 font-mono text-[11px] mt-0.5">
+                          <span>{lastCreatedCredentials.wallet.slice(0, 10)}...{lastCreatedCredentials.wallet.slice(-6)}</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(lastCreatedCredentials.wallet, 'last_wallet')}
+                            className="text-black hover:underline text-[11px] px-1 cursor-pointer"
+                          >
+                            {copiedKey === 'last_wallet' ? '[Copied]' : '[Copy]'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <button
                     type="button"
                     onClick={() => {
-                      const text = `Healthcare Account Credentials\nName: ${lastCreatedCredentials.name}\nRole: ${lastCreatedCredentials.role}\nEmail: ${lastCreatedCredentials.email}\nPassword: ${lastCreatedCredentials.password}`;
+                      const text = `Healthcare Account Credentials\nName: ${lastCreatedCredentials.name}\nRole: ${lastCreatedCredentials.role}\nEmail: ${lastCreatedCredentials.email}\nPassword: ${lastCreatedCredentials.password}${lastCreatedCredentials.wallet ? `\nWallet: ${lastCreatedCredentials.wallet}` : ''}`;
                       copyToClipboard(text, 'copy_all');
                     }}
                     className="w-full py-2 bg-black hover:bg-gray-900 text-white rounded-lg text-xs font-medium flex items-center justify-center cursor-pointer"
@@ -756,16 +1080,27 @@ export default function RoleManagement({ signer, account }) {
           )}
 
           {contractError && (
-            <div className="p-3 bg-gray-50 border border-gray-300 rounded-lg text-xs text-black">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-black">
               <span>{contractError}</span>
             </div>
           )}
 
           <div className="space-y-4 max-w-xl text-black">
             <div>
-              <label className="block text-xs font-medium text-black mb-1">
-                Target Ethereum Wallet Address
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-black">
+                  Target Ethereum Wallet Address
+                </label>
+                {account && (
+                  <button
+                    type="button"
+                    onClick={() => setTargetAddress(account)}
+                    className="text-[11px] underline text-black cursor-pointer"
+                  >
+                    Use Connected Wallet ({account.slice(0, 6)}...{account.slice(-4)})
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
                 placeholder="0x..."
@@ -773,6 +1108,14 @@ export default function RoleManagement({ signer, account }) {
                 onChange={(e) => setTargetAddress(e.target.value)}
                 className="w-full bg-white border border-gray-300 focus:border-black rounded-lg px-3 py-2 text-xs text-black font-mono outline-none"
               />
+              {targetAddress && ethers.isAddress(targetAddress) && (
+                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-black">
+                  <span className="opacity-60">Current On-Chain Status:</span>
+                  <span className="font-semibold capitalize">
+                    {targetAddressStatus}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>
@@ -787,7 +1130,7 @@ export default function RoleManagement({ signer, account }) {
                     onClick={() => setBlockchainRole(r)}
                     className={`py-2 px-3 rounded border text-xs font-medium capitalize cursor-pointer ${
                       blockchainRole === r
-                        ? 'bg-white text-black border-black font-semibold'
+                        ? 'bg-black text-white border-black font-semibold'
                         : 'bg-white text-black border-gray-200 hover:bg-gray-50'
                     }`}
                   >
@@ -801,10 +1144,14 @@ export default function RoleManagement({ signer, account }) {
               <button
                 type="button"
                 onClick={() => handleBlockchainOnboard()}
-                disabled={isContractProcessing}
-                className="py-2 px-4 bg-black hover:bg-gray-900 disabled:bg-gray-300 text-white font-medium rounded-lg text-xs flex items-center justify-center cursor-pointer"
+                disabled={isContractProcessing || !targetAddress || !ethers.isAddress(targetAddress)}
+                className="py-2.5 px-4 bg-black hover:bg-gray-900 disabled:bg-gray-300 text-white font-medium rounded-lg text-xs flex items-center justify-center cursor-pointer transition-colors"
               >
-                <span>{isContractProcessing ? 'Executing On-Chain RBAC Transaction...' : `Assign On-Chain ${blockchainRole.toUpperCase()} Role`}</span>
+                <span>
+                  {isContractProcessing
+                    ? 'Executing On-Chain RBAC Transaction...'
+                    : `Assign On-Chain ${blockchainRole.toUpperCase()} Role`}
+                </span>
               </button>
             </div>
           </div>
