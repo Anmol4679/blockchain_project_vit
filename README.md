@@ -1,4 +1,4 @@
-# BlockDrive / MediChain 🛡️🏥
+# BlockDrive / MediChain 
 
 > **Decentralized Electronic Health Record (EHR) Sharing, Healthcare Role-Based Access Control & On-Chain Credential Verification System**  
 > Combining client-side hybrid cryptography (AES-256-GCM & ECDH P-256), IPFS distributed decentralized storage, Ethereum smart contracts, and Supabase RBAC for non-repudiable medical record access governance and verifiable healthcare credentials. Based on cryptographic schemes and blockchain healthcare architectures proposed by Wang, Zhang & Zhang (*IEEE Access* 2018, [DOI: 10.1109/ACCESS.2018.2851611](https://doi.org/10.1109/ACCESS.2018.2851611)) and decentralized EHR access literature.
@@ -28,7 +28,7 @@
 
 ---
 
-## 🌟 Overview
+##  Overview
 
 Traditional healthcare and cloud storage systems rely on centralized databases and custodial access controls where plaintext records or master encryption keys are vulnerable to data breaches, unauthorized leaks, ransomware, compliance violations (HIPAA/GDPR), and single points of failure.
 
@@ -43,24 +43,24 @@ Traditional healthcare and cloud storage systems rely on centralized databases a
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
-- 🔐 **End-to-End Client Encryption**: 256-bit AES-GCM authenticated encryption with unique 96-bit initialization vectors (IVs) generated in-browser via the Web Crypto API.
-- 🤝 **ECIES / ECDH Key Encapsulation**: AES symmetric keys are wrapped per recipient using Elliptic Curve Diffie-Hellman (ECDH) on curve P-256 and stored on-chain.
-- 🩺 **Dedicated 4-Role Healthcare Portal**: Tailored dashboards and workflows for **Doctors**, **Patients**, **Medical Staff**, and **Hospital Administrators**.
-- 🔍 **Doctor-to-Patient Targeted Upload**:
+-  **End-to-End Client Encryption**: 256-bit AES-GCM authenticated encryption with unique 96-bit initialization vectors (IVs) generated in-browser via the Web Crypto API.
+-  **ECIES / ECDH Key Encapsulation**: AES symmetric keys are wrapped per recipient using Elliptic Curve Diffie-Hellman (ECDH) on curve P-256 and stored on-chain.
+-  **Dedicated 4-Role Healthcare Portal**: Tailored dashboards and workflows for **Doctors**, **Patients**, **Medical Staff**, and **Hospital Administrators**.
+-  **Doctor-to-Patient Targeted Upload**:
   - Real-time search and directory filtering for registered patients.
   - Two-step sequential workflow: Select patient -> unlock document upload dropzone.
   - Direct selection support for typed patient emails or Ethereum wallet addresses.
   - Option to route files to personal clinical vault or directly to the target patient.
 - 📂 **Patient Shared Vault**: Assigned medical records automatically appear in the patient's "Shared With Me" view for one-click in-browser decryption and viewing.
-- 👥 **Admin Onboarding & Provisioning**: System administrators can provision user credentials (Email/Password in Supabase), link Ethereum wallet addresses, onboard healthcare providers on-chain, and audit records.
-- 🗑️ **IPFS Lifecycle Management**: Built-in functionality to delete individual records or clear all cached records from local tracking and IPFS.
-- 📜 **On-Chain File Access Governance**: `FileRegistry.sol` verifies owner authorization, logs file creation events, and maintains active recipient whitelists.
-- 🎓 **Independent Certificate Registry**: `CertificateRegistry.sol` allows designated authorities (`ISSUER_ROLE`) to stamp cryptographic fingerprints (Keccak-256) of certificates with instant revocation controls.
-- 🔍 **Public Read-Only Verification**: Anyone can upload a document or enter its hash to instantly verify authenticity with zero gas fees and zero wallet setup.
-- ⚡ **Auto-Faucet for Localhost**: Hardhat JSON-RPC integration automatically funds connected test accounts with 100 local test ETH, eliminating "insufficient funds" transaction failures.
-- 🛡️ **Hybrid Authentication**: Supabase RBAC user authentication integrated alongside Web3 Ethereum wallet signatures.
+- **Admin Onboarding & Provisioning**: System administrators can provision user credentials (Email/Password in Supabase), link Ethereum wallet addresses, onboard healthcare providers on-chain, and audit records.
+   *-*IPFS Lifecycle Management**: Built-in functionality to delete individual records or clear all cached records from local tracking and IPFS.
+-  **On-Chain File Access Governance**: `FileRegistry.sol` verifies owner authorization, logs file creation events, and maintains active recipient whitelists.
+- *Independent Certificate Registry**: `CertificateRegistry.sol` allows designated authorities (`ISSUER_ROLE`) to stamp cryptographic fingerprints (Keccak-256) of certificates with instant revocation controls.
+-  **Public Read-Only Verification**: Anyone can upload a document or enter its hash to instantly verify authenticity with zero gas fees and zero wallet setup.
+-  **Auto-Faucet for Localhost**: Hardhat JSON-RPC integration automatically funds connected test accounts with 100 local test ETH, eliminating "insufficient funds" transaction failures.
+-  **Hybrid Authentication**: Supabase RBAC user authentication integrated alongside Web3 Ethereum wallet signatures.
 
 ---
 
@@ -77,7 +77,7 @@ The application provides four role profiles:
 
 ---
 
-## 🏛️ System Architecture & Workflows
+##  System Architecture & Workflows
 
 ### 1. Doctor-to-Patient Targeted Upload & Encryption Flow
 ```mermaid
@@ -153,7 +153,7 @@ sequenceDiagram
 
 ---
 
-## 📜 Smart Contracts & Addresses
+##  Smart Contracts & Addresses
 
 All smart contracts are developed with Solidity `^0.8.20` utilizing OpenZeppelin audited contracts.
 
@@ -172,7 +172,7 @@ All smart contracts are developed with Solidity `^0.8.20` utilizing OpenZeppelin
 
 ---
 
-## 📁 Repository Structure
+##  Repository Structure
 
 ```text
 blockchain_project_vit/
@@ -234,7 +234,7 @@ blockchain_project_vit/
 
 ---
 
-## 🗄️ Database Setup (Supabase RBAC)
+##  Database Setup (Supabase RBAC)
 
 To enable user accounts, patient directory search, and role persistence:
 
@@ -250,7 +250,7 @@ To enable user accounts, patient directory search, and role persistence:
 
 ---
 
-## 🛠️ Prerequisites
+##  Prerequisites
 
 Ensure you have the following installed on your machine:
 - **Node.js**: `>= 18.0.0` (Node 20 LTS or Node 22 recommended)
@@ -259,7 +259,7 @@ Ensure you have the following installed on your machine:
 
 ---
 
-## ⚡ Installation & Quick Start
+##  Installation & Quick Start
 
 ### Step 1: Clone the Repository & Install Dependencies
 ```bash
@@ -317,7 +317,7 @@ The web application is now running at **[`http://localhost:5173/`](http://localh
 
 ---
 
-## 🦊 MetaMask Configuration & Local Faucet
+##  MetaMask Configuration & Local Faucet
 
 ### Adding the Hardhat Local Network to MetaMask
 1. Open the **MetaMask** extension.
@@ -347,7 +347,7 @@ When you restart `npx hardhat node`, the local chain resets to block #0. If Meta
 
 ---
 
-## 🧪 Testing & Quality Assurance
+##  Testing & Quality Assurance
 
 BlockDrive includes an automated test suite covering contract deployment, access controls, encrypted file registration, authorization granting/revoking, and certificate issuance/revocation.
 
@@ -407,7 +407,7 @@ npx hardhat run scripts/checkFiles.js --network localhost
 
 ---
 
-## 🌐 Deployment to Public Testnets (Sepolia)
+##  Deployment to Public Testnets (Sepolia)
 
 To deploy the contracts to Ethereum Sepolia:
 
@@ -426,7 +426,7 @@ To deploy the contracts to Ethereum Sepolia:
 
 ---
 
-## 🔑 Environment Variables Reference
+##  Environment Variables Reference
 
 ### Root Directory (`.env`)
 | Variable | Description | Example |
@@ -451,7 +451,7 @@ To deploy the contracts to Ethereum Sepolia:
 
 ---
 
-## 🔒 Security & Cryptographic Guarantees
+##  Security & Cryptographic Guarantees
 
 1. **Zero Knowledge on Storage Layer**: IPFS only stores the ciphertext prefixed by its unique 12-byte initialization vector (IV). An attacker with the IPFS CID cannot decrypt or analyze the content without the corresponding AES-256 key.
 2. **Authenticated Encryption (AES-256-GCM)**: AES-256 in Galois/Counter Mode guarantees both confidentiality and integrity. Any bit alteration in transit triggers an immediate authentication failure.
@@ -461,7 +461,7 @@ To deploy the contracts to Ethereum Sepolia:
 
 ---
 
-## 📚 References & Literature Review
+## References & Literature Review
 
 This project builds upon foundational research in blockchain technology, decentralized healthcare data management, privacy-preserving electronic health records (EHR), and smart contract access control:
 
@@ -489,6 +489,6 @@ This project builds upon foundational research in blockchain technology, decentr
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the [MIT License](LICENSE).
